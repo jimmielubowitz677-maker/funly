@@ -1,12 +1,16 @@
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Users, DollarSign, FileText, MessageSquare, Plus } from 'lucide-react'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import Badge from '@/components/ui/Badge'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminDashboard() {
-  const creatorId = process.env.CREATOR_ID?.trim() ?? ''
+  const supabase = await getSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const creatorId = user.id
   const service   = getSupabaseServiceClient()
 
   const [

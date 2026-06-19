@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Crown, LayoutDashboard, FileText, Users, DollarSign, MessageSquare, UserCircle2, ChevronLeft } from 'lucide-react'
-import { getSupabaseServerClient } from '@/lib/supabase/server'
+import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 
 const navItems = [
   { href: '/admin',             label: 'Dashboard', icon: LayoutDashboard, exact: true  },
@@ -16,8 +16,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const supabase = await getSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const creatorId = process.env.CREATOR_ID?.trim()
-  if (!user || !creatorId || user.id !== creatorId) redirect('/feed')
+  if (!user) redirect('/feed')
+  const service = getSupabaseServiceClient()
+  const { data: profile } = await service.from('users').select('is_creator').eq('id', user.id).maybeSingle()
+  if (!profile?.is_creator) redirect('/feed')
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-zinc-950">

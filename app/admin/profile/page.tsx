@@ -1,10 +1,14 @@
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import ProfileForm from './ProfileForm'
 
 export const dynamic = 'force-dynamic'
 
 export default async function ProfilePage() {
-  const creatorId = process.env.CREATOR_ID?.trim() ?? ''
+  const supabase = await getSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const creatorId = user.id
   const service   = getSupabaseServiceClient()
 
   const { data: profile } = await service

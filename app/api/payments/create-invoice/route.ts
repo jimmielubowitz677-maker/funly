@@ -64,10 +64,15 @@ async function ensureProfile(
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
-  const planId = (body as { planId?: string } | null)?.planId
+  const planId = (body as { planId?: string; creatorId?: string } | null)?.planId
+  const requestedCreatorId = (body as { planId?: string; creatorId?: string } | null)?.creatorId
 
   if (!planId || !PLANS[planId]) {
     return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+  }
+
+  if (!requestedCreatorId) {
+    return NextResponse.json({ error: 'Creator ID is required' }, { status: 400 })
   }
 
   // ── Authenticate the subscriber ──
@@ -86,31 +91,17 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Resolve creator ──
-  // CREATOR_ID env var takes precedence (required for single-creator platforms
-  // where the creator account may not yet have is_creator=true in the DB).
-  const envCreatorId = process.env.CREATOR_ID?.trim() || null
-  let creatorId: string | null = null
+  const { data: creatorRow } = await service
+    .from('users')
+    .select('id, username, is_creator, is_banned')
+    .eq('id', requestedCreatorId)
+    .maybeSingle()
 
-  if (envCreatorId) {
-    creatorId = await ensureProfile(service, envCreatorId, { is_creator: true })
-  } else {
-    const { data: row } = await service
-      .from('users')
-      .select('id')
-      .eq('is_creator', true)
-      .eq('is_banned', false)
-      .limit(1)
-      .maybeSingle()
-    creatorId = row?.id ?? null
+  if (!creatorRow || !creatorRow.is_creator || creatorRow.is_banned) {
+    return NextResponse.json({ error: 'Creator not found or unavailable' }, { status: 404 })
   }
-
-  if (!creatorId) {
-    console.error('[create-invoice] No creator found. Set CREATOR_ID in .env.local')
-    return NextResponse.json(
-      { error: 'Payments are not yet configured. Please contact the site owner.' },
-      { status: 503 }
-    )
-  }
+  const creatorId = creatorRow.id
+  const creatorUsername = creatorRow.username
 
   if (creatorId === subscriberId) {
     return NextResponse.json({ error: 'You cannot subscribe to yourself.' }, { status: 400 })
@@ -148,8 +139,8 @@ export async function POST(request: NextRequest) {
       price_currency:    'usd',
       order_id:          orderId,
       order_description: plan.label,
-      success_url:       `${baseUrl}/feed?payment=success`,
-      cancel_url:        `${baseUrl}/subscriptions?payment=cancelled`,
+      success_url:       `${baseUrl}/${creatorUsername}?payment=success`,
+      cancel_url:        `${baseUrl}/${creatorUsername}`,
       ipn_callback_url:  `${baseUrl}/api/payments/webhook`,
     })
   } catch (err) {

@@ -11,6 +11,7 @@ export type PostType = 'free' | 'premium' | 'ppv'
 
 export interface Post {
   id: string
+  creatorId: string
   creator: { name: string; username: string; initials: string; verified: boolean; avatarUrl?: string | null }
   content: string
   hasMedia: boolean

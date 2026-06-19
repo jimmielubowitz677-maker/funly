@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, MessageCircle, Star, Crown, LogOut, Shield } from 'lucide-react'
+import { Home, MessageCircle, Star, Crown, LogOut, Shield, UserCircle } from 'lucide-react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -10,6 +10,7 @@ const navItems = [
   { href: '/feed',          label: 'Feed',      icon: Home          },
   { href: '/messages',      label: 'Messages',  icon: MessageCircle },
   { href: '/subscriptions', label: 'Subscribe', icon: Star          },
+  { href: '/account',       label: 'Account',   icon: UserCircle    },
 ]
 
 export default function Sidebar() {
