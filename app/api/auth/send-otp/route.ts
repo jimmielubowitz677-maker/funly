@@ -3,9 +3,6 @@ import { Resend } from 'resend'
 import { createHash, randomInt } from 'crypto'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Funly <onboarding@resend.dev>'
-
 function generateCode() {
   return randomInt(100_000, 1_000_000).toString()
 }
@@ -15,6 +12,9 @@ function hashCode(code: string) {
 }
 
 export async function POST(req: NextRequest) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Funly <onboarding@resend.dev>'
+
   const body  = await req.json().catch(() => null)
   const email = typeof body?.email === 'string' ? body.email.toLowerCase().trim() : null
 
