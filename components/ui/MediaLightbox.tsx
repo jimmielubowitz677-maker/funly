@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, ChevronLeft, ChevronRight, Play } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export interface LightboxItem {
   url: string
@@ -43,7 +43,7 @@ export default function MediaLightbox({ items, initialIndex = 0, onClose }: Medi
   function onTouchEnd(e: React.TouchEvent) {
     if (touchStartX.current === null) return
     const diff = touchStartX.current - e.changedTouches[0].clientX
-    if (Math.abs(diff) > 50 && items.length > 1) diff > 0 ? next() : prev()
+    if (Math.abs(diff) > 50 && items.length > 1) { if (diff > 0) next(); else prev() }
     touchStartX.current = null
   }
 

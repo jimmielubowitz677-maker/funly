@@ -14,8 +14,8 @@ export default async function DiscoverPage() {
 
   // For each creator, get their subscriber count and post count
   const creatorIds = (creators ?? []).map((c: { id: string }) => c.id)
-  let subCounts: Record<string, number> = {}
-  let postCounts: Record<string, number> = {}
+  const subCounts: Record<string, number> = {}
+  const postCounts: Record<string, number> = {}
 
   if (creatorIds.length) {
     const [{ data: subs }, { data: posts }] = await Promise.all([

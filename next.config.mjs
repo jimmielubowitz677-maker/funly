@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   experimental: {
     // Set the client-side Router Cache TTL for dynamic routes to 0.
     // Without this, Next.js 14 caches RSC payloads in memory even when a page

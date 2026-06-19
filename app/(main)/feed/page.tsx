@@ -23,7 +23,7 @@ function relativeTime(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-export default async function FeedPage({ searchParams }: { searchParams: { payment?: string } }) {
+export default async function FeedPage() {
   const supabase = await getSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
