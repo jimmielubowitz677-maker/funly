@@ -2,10 +2,11 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, X, Video, Loader2, Plus, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { Upload, X, Video, Loader2, Plus, AlertCircle, Eye, EyeOff, ZoomIn } from 'lucide-react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import MediaLightbox, { type LightboxItem } from '@/components/ui/MediaLightbox'
 import { cn } from '@/lib/utils'
 
 interface ExistingMedia {
@@ -54,12 +55,19 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
   const [ppvPrice,    setPpvPrice]    = useState(post?.ppv_price_cents ? String(post.ppv_price_cents / 100) : '')
   const isPublished = post?.is_published ?? false
 
-  const [queued,       setQueued]       = useState<QueuedFile[]>([])
-  const [keptMedia,    setKeptMedia]    = useState<ExistingMedia[]>(existingMedia)
-  const [deletedIds,   setDeletedIds]   = useState<string[]>([])
-  const [dragActive,   setDragActive]   = useState(false)
-  const [submitting,   setSubmitting]   = useState(false)
-  const [error,        setError]        = useState<string | null>(null)
+  const [queued,        setQueued]        = useState<QueuedFile[]>([])
+  const [keptMedia,     setKeptMedia]     = useState<ExistingMedia[]>(existingMedia)
+  const [deletedIds,    setDeletedIds]    = useState<string[]>([])
+  const [dragActive,    setDragActive]    = useState(false)
+  const [submitting,    setSubmitting]    = useState(false)
+  const [error,         setError]         = useState<string | null>(null)
+  const [lightboxItems, setLightboxItems] = useState<LightboxItem[]>([])
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  function openLightbox(items: LightboxItem[], index: number) {
+    setLightboxItems(items)
+    setLightboxIndex(index)
+  }
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -167,6 +175,14 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
   const hasMedia = keptMedia.length > 0 || queued.length > 0
 
   return (
+    <>
+      {lightboxIndex !== null && (
+        <MediaLightbox
+          items={lightboxItems}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
     <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto">
       <div className="mb-6">
         <h1 className="text-xl md:text-2xl font-bold">{mode === 'create' ? 'New Post' : 'Edit Post'}</h1>
@@ -189,54 +205,89 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
 
           {hasMedia ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3">
-              {keptMedia.map(m => (
-                <div key={m.id} className="relative rounded-xl overflow-hidden bg-zinc-800 aspect-square group">
-                  {m.media_type === 'image' ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={m.url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full gap-1.5 p-2">
-                      <Video className="w-7 h-7 text-zinc-400" />
-                      <p className="text-[10px] text-zinc-500 text-center line-clamp-2">{m.file_name}</p>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => removeExisting(m.id)}
-                    className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-zinc-900/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-3 h-3 text-white" />
-                  </button>
-                </div>
-              ))}
-
-              {queued.map((q, i) => (
-                <div key={i} className="relative rounded-xl overflow-hidden bg-zinc-800 aspect-square group">
-                  {q.preview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={q.preview} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full gap-1.5 p-2">
-                      <Video className="w-7 h-7 text-zinc-400" />
-                      <p className="text-[10px] text-zinc-500 text-center line-clamp-2">{q.file.name}</p>
-                    </div>
-                  )}
-                  {q.uploading && (
-                    <div className="absolute inset-0 bg-zinc-900/70 flex items-center justify-center">
-                      <Loader2 className="w-5 h-5 text-pink-400 animate-spin" />
-                    </div>
-                  )}
-                  {!q.uploading && (
+              {keptMedia.map((m, mi) => {
+                // Build combined list for lightbox navigation: kept media first, then uploaded queued
+                const allItems: LightboxItem[] = [
+                  ...keptMedia.map(k => ({ url: k.url, type: k.media_type as 'image' | 'video' })),
+                  ...queued.filter(q => q.url).map(q => ({ url: q.url!, type: (q.file.type.startsWith('video/') ? 'video' : 'image') as 'image' | 'video' })),
+                ]
+                return (
+                  <div key={m.id} className="relative rounded-xl overflow-hidden bg-zinc-800 aspect-square group">
+                    {m.media_type === 'image' ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={m.url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full gap-1.5 p-2">
+                        <Video className="w-7 h-7 text-zinc-400" />
+                        <p className="text-[10px] text-zinc-500 text-center line-clamp-2">{m.file_name}</p>
+                      </div>
+                    )}
+                    {/* Expand button */}
                     <button
                       type="button"
-                      onClick={() => removeQueued(i)}
+                      onClick={() => openLightbox(allItems, mi)}
+                      className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-zinc-900/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <ZoomIn className="w-3 h-3 text-white" />
+                    </button>
+                    {/* Remove button */}
+                    <button
+                      type="button"
+                      onClick={() => removeExisting(m.id)}
                       className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-zinc-900/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="w-3 h-3 text-white" />
                     </button>
-                  )}
-                </div>
-              ))}
+                  </div>
+                )
+              })}
+
+              {queued.map((q, i) => {
+                const allItems: LightboxItem[] = [
+                  ...keptMedia.map(k => ({ url: k.url, type: k.media_type as 'image' | 'video' })),
+                  ...queued.filter(q => q.url).map(q => ({ url: q.url!, type: (q.file.type.startsWith('video/') ? 'video' : 'image') as 'image' | 'video' })),
+                ]
+                const queuedOffset = keptMedia.length
+                const isExpandable = !!(q.preview || q.url)
+                return (
+                  <div key={i} className="relative rounded-xl overflow-hidden bg-zinc-800 aspect-square group">
+                    {q.preview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={q.preview} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full gap-1.5 p-2">
+                        <Video className="w-7 h-7 text-zinc-400" />
+                        <p className="text-[10px] text-zinc-500 text-center line-clamp-2">{q.file.name}</p>
+                      </div>
+                    )}
+                    {q.uploading && (
+                      <div className="absolute inset-0 bg-zinc-900/70 flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 text-pink-400 animate-spin" />
+                      </div>
+                    )}
+                    {!q.uploading && (
+                      <>
+                        {isExpandable && q.url && (
+                          <button
+                            type="button"
+                            onClick={() => openLightbox(allItems, queuedOffset + i)}
+                            className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-zinc-900/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <ZoomIn className="w-3 h-3 text-white" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeQueued(i)}
+                          className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-zinc-900/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
 
               <button
                 type="button"
@@ -373,5 +424,6 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
         </div>
       </div>
     </div>
+    </>
   )
 }

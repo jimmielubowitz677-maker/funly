@@ -62,7 +62,6 @@ export default async function FeedPage({ searchParams }: { searchParams: { payme
   const posts: Post[] = ((rawPosts ?? []) as unknown as PostRow[]).map(p => {
     const c = creatorMap[p.creator_id] as { id: string; username: string; display_name: string | null; is_verified: boolean; avatar_url: string | null } | undefined
     const media = (p.media ?? []).sort((a: MediaRow, b: MediaRow) => a.sort_order - b.sort_order)
-    const firstImage = media.find((m: MediaRow) => m.media_type === 'image')
     const creatorName = c?.display_name ?? c?.username ?? 'Creator'
     const creatorUsername = c?.username ?? 'creator'
     return {
@@ -77,7 +76,7 @@ export default async function FeedPage({ searchParams }: { searchParams: { payme
       },
       content: p.body ?? '',
       hasMedia: media.length > 0,
-      mediaUrl: firstImage?.url,
+      mediaItems: media.map((m: MediaRow) => ({ url: m.url, type: m.media_type as 'image' | 'video' })),
       mediaGradient: GRADIENTS[p.id.charCodeAt(0) % GRADIENTS.length],
       type: p.post_type,
       ppvPrice: p.ppv_price_cents ? p.ppv_price_cents / 100 : undefined,

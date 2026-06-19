@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Heart, MessageSquare, Share2, Lock, Eye } from 'lucide-react'
+import { Heart, MessageSquare, Share2, Lock, Eye, Play } from 'lucide-react'
 import Avatar from './ui/Avatar'
 import Badge from './ui/Badge'
 import Button from './ui/Button'
+import MediaLightbox, { type LightboxItem } from './ui/MediaLightbox'
 import { cn } from '@/lib/utils'
 
 export type PostType = 'free' | 'premium' | 'ppv'
@@ -16,6 +17,7 @@ export interface Post {
   content: string
   hasMedia: boolean
   mediaUrl?: string
+  mediaItems?: LightboxItem[]
   mediaGradient?: string
   type: PostType
   ppvPrice?: number
@@ -34,131 +36,251 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, isSubscribed, unlockedPosts, onUnlock, onSubscribe, loadingUnlock }: PostCardProps) {
-  const [liked, setLiked] = useState(false)
-  const [likeCount, setLikeCount] = useState(post.likes)
+  const [liked,         setLiked]         = useState(false)
+  const [likeCount,     setLikeCount]     = useState(post.likes)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   const isLocked =
     (post.type === 'premium' && !isSubscribed) ||
     (post.type === 'ppv' && !isSubscribed && !unlockedPosts.has(post.id))
+
+  // Unified media list: prefer mediaItems, fall back to single mediaUrl
+  const allMedia: LightboxItem[] =
+    post.mediaItems?.length
+      ? post.mediaItems
+      : post.mediaUrl
+        ? [{ url: post.mediaUrl, type: 'image' }]
+        : []
 
   function handleLike() {
     setLiked(l => !l)
     setLikeCount(c => (liked ? c - 1 : c + 1))
   }
 
+  function openLightbox(i: number) {
+    setLightboxIndex(i)
+  }
+
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors duration-200">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-4">
-        <div className="flex items-center gap-3">
-          <Avatar initials={post.creator.initials} src={post.creator.avatarUrl} verified={post.creator.verified} />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">{post.creator.name}</span>
-              <Badge variant={post.type} />
+    <>
+      {lightboxIndex !== null && (
+        <MediaLightbox
+          items={allMedia}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors duration-200">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4">
+          <div className="flex items-center gap-3">
+            <Avatar initials={post.creator.initials} src={post.creator.avatarUrl} verified={post.creator.verified} />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm">{post.creator.name}</span>
+                <Badge variant={post.type} />
+              </div>
+              <span className="text-xs text-zinc-500">
+                @{post.creator.username} · {post.timestamp}
+              </span>
             </div>
-            <span className="text-xs text-zinc-500">
-              @{post.creator.username} · {post.timestamp}
-            </span>
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="px-5 pb-4">
-        {isLocked ? (
-          <div>
-            {/* Blurred teaser */}
-            {(post.content || post.hasMedia) && (
-              <div className="relative overflow-hidden mb-4 rounded-xl">
-                {post.content && (
-                  <p className="text-zinc-400 text-sm leading-relaxed blur-sm select-none pointer-events-none line-clamp-2">
-                    {post.content}
-                  </p>
-                )}
-                {post.hasMedia && (
-                  post.mediaUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={post.mediaUrl} alt="" className="mt-2 w-full h-40 object-cover blur-sm pointer-events-none rounded-xl" />
-                  ) : (
-                    <div className={cn('mt-2 w-full h-40 rounded-xl blur-sm pointer-events-none bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-700 to-zinc-800')} />
-                  )
-                )}
-                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
-              </div>
-            )}
-
-            {/* Inline gate — always fully visible, no absolute positioning */}
-            <div className="flex flex-col items-center gap-3 py-5 px-4 rounded-xl border border-zinc-800 bg-zinc-950/60">
-              <div className="w-10 h-10 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                <Lock className="w-4 h-4 text-pink-400" />
-              </div>
-
-              {post.type === 'premium' ? (
-                <>
-                  <div className="text-center">
-                    <p className="font-semibold text-white text-sm">Premium Content</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">Subscribe to unlock all premium posts</p>
-                  </div>
-                  <Button variant="primary" size="sm" onClick={onSubscribe}>
-                    Subscribe — from $9.99/mo
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <div className="text-center">
-                    <p className="font-semibold text-white text-sm">Pay-Per-View Post</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">One-time unlock for this exclusive post</p>
-                  </div>
-                  <Button variant="primary" size="sm" loading={loadingUnlock} onClick={() => onUnlock(post.id)}>
-                    {loadingUnlock ? 'Redirecting…' : `Unlock for $${post.ppvPrice?.toFixed(2)}`}
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        ) : (
-          <>
-            <p className="text-zinc-300 text-sm leading-relaxed">{post.content}</p>
-            {post.hasMedia && (
-              post.mediaUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={post.mediaUrl} alt="" className="mt-3 w-full h-56 rounded-xl object-cover" />
-              ) : (
-                <div className={cn('mt-3 w-full h-56 rounded-xl flex items-center justify-center bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-700 to-zinc-800')}>
-                  <Eye className="w-8 h-8 text-white/20" />
+        {/* Content */}
+        <div className="px-5 pb-4">
+          {isLocked ? (
+            <div>
+              {/* Blurred teaser */}
+              {(post.content || post.hasMedia) && (
+                <div className="relative overflow-hidden mb-4 rounded-xl">
+                  {post.content && (
+                    <p className="text-zinc-400 text-sm leading-relaxed blur-sm select-none pointer-events-none line-clamp-2">
+                      {post.content}
+                    </p>
+                  )}
+                  {post.hasMedia && (
+                    allMedia[0] ? (
+                      allMedia[0].type === 'video' ? (
+                        <div className="mt-2 w-full h-40 rounded-xl blur-sm pointer-events-none bg-zinc-800 flex items-center justify-center">
+                          <Play className="w-8 h-8 text-zinc-600 fill-zinc-600" />
+                        </div>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={allMedia[0].url} alt="" className="mt-2 w-full h-40 object-cover blur-sm pointer-events-none rounded-xl" />
+                      )
+                    ) : (
+                      <div className={cn('mt-2 w-full h-40 rounded-xl blur-sm pointer-events-none bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-700 to-zinc-800')} />
+                    )
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
                 </div>
-              )
-            )}
-          </>
+              )}
+
+              <div className="flex flex-col items-center gap-3 py-5 px-4 rounded-xl border border-zinc-800 bg-zinc-950/60">
+                <div className="w-10 h-10 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+                  <Lock className="w-4 h-4 text-pink-400" />
+                </div>
+
+                {post.type === 'premium' ? (
+                  <>
+                    <div className="text-center">
+                      <p className="font-semibold text-white text-sm">Premium Content</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">Subscribe to unlock all premium posts</p>
+                    </div>
+                    <Button variant="primary" size="sm" onClick={onSubscribe}>
+                      Subscribe — from $9.99/mo
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-center">
+                      <p className="font-semibold text-white text-sm">Pay-Per-View Post</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">One-time unlock for this exclusive post</p>
+                    </div>
+                    <Button variant="primary" size="sm" loading={loadingUnlock} onClick={() => onUnlock(post.id)}>
+                      {loadingUnlock ? 'Redirecting…' : `Unlock for $${post.ppvPrice?.toFixed(2)}`}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {post.content && (
+                <p className="text-zinc-300 text-sm leading-relaxed">{post.content}</p>
+              )}
+
+              {post.hasMedia && (
+                <MediaGrid
+                  items={allMedia}
+                  gradient={post.mediaGradient}
+                  onOpen={openLightbox}
+                  hasMedia={post.hasMedia}
+                />
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Actions */}
+        {!isLocked && (
+          <div className="flex items-center gap-1 px-5 pb-5 pt-3 border-t border-zinc-800/60">
+            <button
+              onClick={handleLike}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
+                liked
+                  ? 'text-pink-400 bg-pink-500/10'
+                  : 'text-zinc-500 hover:text-pink-400 hover:bg-pink-500/10'
+              )}
+            >
+              <Heart className={cn('w-4 h-4', liked && 'fill-current')} />
+              {likeCount.toLocaleString()}
+            </button>
+            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200">
+              <MessageSquare className="w-4 h-4" />
+              {post.comments.toLocaleString()}
+            </button>
+            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all duration-200">
+              <Share2 className="w-4 h-4" />
+              Share
+            </button>
+          </div>
         )}
       </div>
+    </>
+  )
+}
 
-      {/* Actions */}
-      {!isLocked && (
-        <div className="flex items-center gap-1 px-5 pb-5 pt-3 border-t border-zinc-800/60">
-          <button
-            onClick={handleLike}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
-              liked
-                ? 'text-pink-400 bg-pink-500/10'
-                : 'text-zinc-500 hover:text-pink-400 hover:bg-pink-500/10'
-            )}
-          >
-            <Heart className={cn('w-4 h-4', liked && 'fill-current')} />
-            {likeCount.toLocaleString()}
+// ── Media grid subcomponent ──────────────────────────────────────────────────
+
+interface MediaGridProps {
+  items: LightboxItem[]
+  gradient?: string
+  hasMedia: boolean
+  onOpen: (index: number) => void
+}
+
+function MediaGrid({ items, gradient, hasMedia, onOpen }: MediaGridProps) {
+  if (items.length === 0) {
+    return hasMedia ? (
+      <div className={cn('mt-3 w-full h-56 rounded-xl flex items-center justify-center bg-gradient-to-br', gradient ?? 'from-zinc-700 to-zinc-800')}>
+        <Eye className="w-8 h-8 text-white/20" />
+      </div>
+    ) : null
+  }
+
+  if (items.length === 1) {
+    return (
+      <button
+        onClick={() => onOpen(0)}
+        className="mt-3 block w-full rounded-xl overflow-hidden focus:outline-none cursor-zoom-in group"
+      >
+        <MediaThumb item={items[0]} className="w-full h-64 sm:h-72 object-cover group-hover:scale-[1.01] transition-transform duration-200" />
+      </button>
+    )
+  }
+
+  // 2–4 items: grid
+  const shown   = items.slice(0, 4)
+  const overflow = items.length - 4
+
+  if (items.length === 2) {
+    return (
+      <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl overflow-hidden">
+        {shown.map((item, i) => (
+          <button key={i} onClick={() => onOpen(i)} className="block aspect-square focus:outline-none cursor-zoom-in overflow-hidden">
+            <MediaThumb item={item} className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-200" />
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200">
-            <MessageSquare className="w-4 h-4" />
-            {post.comments.toLocaleString()}
+        ))}
+      </div>
+    )
+  }
+
+  if (items.length === 3) {
+    return (
+      <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl overflow-hidden">
+        <button onClick={() => onOpen(0)} className="block row-span-2 aspect-[3/4] focus:outline-none cursor-zoom-in overflow-hidden">
+          <MediaThumb item={items[0]} className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-200" />
+        </button>
+        {shown.slice(1).map((item, i) => (
+          <button key={i + 1} onClick={() => onOpen(i + 1)} className="block aspect-square focus:outline-none cursor-zoom-in overflow-hidden">
+            <MediaThumb item={item} className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-200" />
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all duration-200">
-            <Share2 className="w-4 h-4" />
-            Share
-          </button>
-        </div>
-      )}
+        ))}
+      </div>
+    )
+  }
+
+  // 4+
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl overflow-hidden">
+      {shown.map((item, i) => (
+        <button key={i} onClick={() => onOpen(i)} className="relative block aspect-square focus:outline-none cursor-zoom-in overflow-hidden">
+          <MediaThumb item={item} className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-200" />
+          {i === 3 && overflow > 0 && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <span className="text-white font-bold text-2xl">+{overflow}</span>
+            </div>
+          )}
+        </button>
+      ))}
     </div>
   )
+}
+
+// ── Single thumbnail (image or video preview) ─────────────────────────────────
+
+function MediaThumb({ item, className }: { item: LightboxItem; className?: string }) {
+  if (item.type === 'video') {
+    return (
+      <div className={cn('relative bg-zinc-800 flex items-center justify-center', className)}>
+        <Play className="w-10 h-10 text-white/70 fill-white/70 drop-shadow-lg" />
+      </div>
+    )
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={item.url} alt="" className={className} draggable={false} />
 }

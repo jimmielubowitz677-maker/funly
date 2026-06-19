@@ -70,7 +70,6 @@ export default async function CreatorPage({
 
   const posts: Post[] = ((rawPosts ?? []) as unknown as PostRow[]).map(p => {
     const media = (p.media ?? []).sort((a: MediaRow, b: MediaRow) => a.sort_order - b.sort_order)
-    const firstImage = media.find((m: MediaRow) => m.media_type === 'image')
     return {
       id: p.id,
       creatorId: p.creator_id,
@@ -83,7 +82,7 @@ export default async function CreatorPage({
       },
       content: p.body ?? '',
       hasMedia: media.length > 0,
-      mediaUrl: firstImage?.url,
+      mediaItems: media.map((m: MediaRow) => ({ url: m.url, type: m.media_type as 'image' | 'video' })),
       mediaGradient: GRADIENTS[p.id.charCodeAt(0) % GRADIENTS.length],
       type: p.post_type,
       ppvPrice: p.ppv_price_cents ? p.ppv_price_cents / 100 : undefined,
