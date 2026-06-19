@@ -34,6 +34,7 @@ export type Database = {
       users: {
         Row: {
           id:                       string
+          owner_id:                 string | null
           username:                 string
           display_name:             string | null
           email:                    string
@@ -50,6 +51,7 @@ export type Database = {
         }
         Insert: {
           id:                        string
+          owner_id?:                 string | null
           username:                  string
           email:                     string
           display_name?:             string | null

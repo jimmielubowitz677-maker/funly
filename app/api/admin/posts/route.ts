@@ -11,7 +11,7 @@ interface NewMedia {
 }
 
 export async function POST(request: NextRequest) {
-  const { userId, error } = await requireAdmin()
+  const { userId, modelId, error } = await requireAdmin()
   if (error) return error
 
   const body = await request.json().catch(() => null)
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   const { data: post, error: postErr } = await service
     .from('posts')
     .insert({
-      creator_id:      userId!,
+      creator_id:      modelId!,
       title:           title?.trim() || null,
       body:            postBody?.trim() || null,
       post_type:       post_type ?? 'free',

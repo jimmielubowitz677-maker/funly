@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSelectedModel } from '@/lib/admin'
 import PostsTable from './PostsTable'
 
 export const dynamic = 'force-dynamic'
@@ -10,7 +11,10 @@ export default async function PostsPage() {
   const supabase = await getSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  const creatorId = user.id
+
+  const model = await getSelectedModel(user.id)
+  if (!model) redirect('/admin/models')
+  const creatorId = model.id
   const service   = getSupabaseServiceClient()
 
   // Core list query — only columns that definitely exist in the schema.

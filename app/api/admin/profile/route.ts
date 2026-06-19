@@ -5,8 +5,8 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server'
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,30}$/
 
 export async function POST(request: NextRequest) {
-  const { userId, error } = await requireAdmin()
-  console.log('[profile] requireAdmin ->', { userId, hasError: !!error })
+  const { userId, modelId, error } = await requireAdmin()
+  console.log('[profile] requireAdmin ->', { userId, modelId, hasError: !!error })
   if (error) return error
 
   let formData: FormData
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     .from('users')
     .select('id')
     .eq('username', uname)
-    .neq('id', userId!)
+    .neq('id', modelId!)
     .maybeSingle()
 
   console.log('[profile] username uniqueness check ->', { uname, taken })
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     console.log('[profile] uploading avatar...')
     const buffer = await avatarFile.arrayBuffer()
     const ext    = (avatarFile.name.split('.').pop() ?? 'jpg').toLowerCase()
-    const path   = `avatars/${userId}-${Date.now()}.${ext}`
+    const path   = `avatars/${modelId}-${Date.now()}.${ext}`
     console.log('[profile] avatar storage path:', path)
 
     const { data: uploadData, error: upErr } = await service.storage
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     console.log('[profile] uploading banner...')
     const buffer = await bannerFile.arrayBuffer()
     const ext    = (bannerFile.name.split('.').pop() ?? 'jpg').toLowerCase()
-    const path   = `banners/${userId}-${Date.now()}.${ext}`
+    const path   = `banners/${modelId}-${Date.now()}.${ext}`
     console.log('[profile] banner storage path:', path)
 
     const { data: uploadData, error: upErr } = await service.storage
@@ -120,12 +120,12 @@ export async function POST(request: NextRequest) {
     banner_url:   newBannerUrl,
   }
 
-  console.log('[profile] writing to DB ->', { userId, updates })
+  console.log('[profile] writing to DB ->', { modelId, updates })
 
   const { data: dbData, error: dbErr } = await service
     .from('users')
     .update(updates)
-    .eq('id', userId!)
+    .eq('id', modelId!)
     .select('id, username, avatar_url, banner_url')
 
   console.log('[profile] DB update result ->', { dbData, dbErr })
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
   const { data: verifyRow, error: verifyErr } = await service
     .from('users')
     .select('id, username, avatar_url, banner_url')
-    .eq('id', userId!)
+    .eq('id', modelId!)
     .maybeSingle()
 
   console.log('[profile] post-update DB verify ->', { verifyRow, verifyErr })

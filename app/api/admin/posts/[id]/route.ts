@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  const { userId, error } = await requireAdmin()
+  const { userId, modelId, error } = await requireAdmin()
   if (error) return error
 
   const body = await request.json().catch(() => null)
@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   const { data: postRow } = await service.from('posts').select('creator_id').eq('id', params.id).maybeSingle()
   if (!postRow) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (postRow.creator_id !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (postRow.creator_id !== modelId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { error: updateErr } = await service
     .from('posts')
@@ -94,14 +94,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  const { userId, error } = await requireAdmin()
+  const { modelId, error } = await requireAdmin()
   if (error) return error
 
   const service = getSupabaseServiceClient()
 
   const { data: postRow } = await service.from('posts').select('creator_id').eq('id', params.id).maybeSingle()
   if (!postRow) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (postRow.creator_id !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (postRow.creator_id !== modelId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   // Delete media files from storage first
   const { data: mediaRows } = await service.from('media').select('url').eq('post_id', params.id)
