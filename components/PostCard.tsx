@@ -11,7 +11,7 @@ export type PostType = 'free' | 'premium' | 'ppv'
 
 export interface Post {
   id: string
-  creator: { name: string; username: string; initials: string; verified: boolean }
+  creator: { name: string; username: string; initials: string; verified: boolean; avatarUrl?: string | null }
   content: string
   hasMedia: boolean
   mediaUrl?: string
@@ -50,7 +50,7 @@ export default function PostCard({ post, isSubscribed, unlockedPosts, onUnlock, 
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-4">
         <div className="flex items-center gap-3">
-          <Avatar initials={post.creator.initials} verified={post.creator.verified} />
+          <Avatar initials={post.creator.initials} src={post.creator.avatarUrl} verified={post.creator.verified} />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm">{post.creator.name}</span>
@@ -66,30 +66,37 @@ export default function PostCard({ post, isSubscribed, unlockedPosts, onUnlock, 
       {/* Content */}
       <div className="px-5 pb-4">
         {isLocked ? (
-          <div className="relative">
-            {/* Blurred preview */}
-            <p className="text-zinc-400 text-sm leading-relaxed blur-sm select-none pointer-events-none line-clamp-3">
-              {post.content}
-            </p>
-            {post.hasMedia && (
-              post.mediaUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={post.mediaUrl} alt="" className="mt-3 w-full h-56 rounded-xl object-cover blur-sm pointer-events-none" />
-              ) : (
-                <div className={cn('mt-3 w-full h-56 rounded-xl blur-sm pointer-events-none bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-700 to-zinc-800')} />
-              )
+          <div>
+            {/* Blurred teaser */}
+            {(post.content || post.hasMedia) && (
+              <div className="relative overflow-hidden mb-4 rounded-xl">
+                {post.content && (
+                  <p className="text-zinc-400 text-sm leading-relaxed blur-sm select-none pointer-events-none line-clamp-2">
+                    {post.content}
+                  </p>
+                )}
+                {post.hasMedia && (
+                  post.mediaUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={post.mediaUrl} alt="" className="mt-2 w-full h-40 object-cover blur-sm pointer-events-none rounded-xl" />
+                  ) : (
+                    <div className={cn('mt-2 w-full h-40 rounded-xl blur-sm pointer-events-none bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-700 to-zinc-800')} />
+                  )
+                )}
+                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
+              </div>
             )}
 
-            {/* Lock overlay */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-zinc-900/10 via-zinc-950/75 to-zinc-950 -mx-5 px-5 py-8">
-              <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                <Lock className="w-5 h-5 text-pink-400" />
+            {/* Inline gate — always fully visible, no absolute positioning */}
+            <div className="flex flex-col items-center gap-3 py-5 px-4 rounded-xl border border-zinc-800 bg-zinc-950/60">
+              <div className="w-10 h-10 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+                <Lock className="w-4 h-4 text-pink-400" />
               </div>
 
               {post.type === 'premium' ? (
                 <>
                   <div className="text-center">
-                    <p className="font-semibold text-white">Premium Content</p>
+                    <p className="font-semibold text-white text-sm">Premium Content</p>
                     <p className="text-xs text-zinc-500 mt-0.5">Subscribe to unlock all premium posts</p>
                   </div>
                   <Button variant="primary" size="sm" onClick={onSubscribe}>
@@ -99,7 +106,7 @@ export default function PostCard({ post, isSubscribed, unlockedPosts, onUnlock, 
               ) : (
                 <>
                   <div className="text-center">
-                    <p className="font-semibold text-white">Pay-Per-View Post</p>
+                    <p className="font-semibold text-white text-sm">Pay-Per-View Post</p>
                     <p className="text-xs text-zinc-500 mt-0.5">One-time unlock for this exclusive post</p>
                   </div>
                   <Button variant="primary" size="sm" loading={loadingUnlock} onClick={() => onUnlock(post.id)}>

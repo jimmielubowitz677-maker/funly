@@ -9,17 +9,39 @@ export default async function PostsPage() {
   const creatorId = process.env.CREATOR_ID?.trim() ?? ''
   const service   = getSupabaseServiceClient()
 
+  // Core list query — only columns that definitely exist in the schema.
+  // Stats (like_count, tip_total_cents) are fetched separately so a missing
+  // column never breaks the list.
   const { data: posts } = await service
     .from('posts')
     .select('id,title,post_type,ppv_price_cents,is_published,created_at')
     .eq('creator_id', creatorId)
     .order('created_at', { ascending: false })
 
-  // Count media per post
   const postIds = (posts ?? []).map(p => p.id)
-  const { data: mediaCounts } = postIds.length
-    ? await service.from('media').select('post_id,media_type').in('post_id', postIds)
-    : { data: [] }
+
+  // Fetch media counts, per-post stats, and PPV revenue in parallel.
+  // All three are best-effort: if a column doesn't exist or a query errors
+  // the table still renders — stats just show as zero.
+  const [
+    { data: mediaCounts },
+    { data: postStats },
+    { data: ppvPayments },
+  ] = await Promise.all([
+    postIds.length
+      ? service.from('media').select('post_id,media_type').in('post_id', postIds)
+      : Promise.resolve({ data: [] as { post_id: string | null; media_type: string }[] }),
+    postIds.length
+      ? service.from('posts').select('id,like_count,tip_total_cents').in('id', postIds)
+      : Promise.resolve({ data: [] as { id: string; like_count: number; tip_total_cents: number }[] }),
+    postIds.length
+      ? service
+          .from('payments')
+          .select('post_id,amount_cents')
+          .in('post_id', postIds)
+          .eq('status', 'completed')
+      : Promise.resolve({ data: [] as { post_id: string | null; amount_cents: number }[] }),
+  ])
 
   const mediaMap: Record<string, { count: number; hasVideo: boolean }> = {}
   for (const m of mediaCounts ?? []) {
@@ -29,10 +51,23 @@ export default async function PostsPage() {
     if (m.media_type === 'video') mediaMap[m.post_id].hasVideo = true
   }
 
+  const statsMap: Record<string, { like_count: number; tip_total_cents: number }> = {}
+  for (const s of postStats ?? []) {
+    statsMap[s.id] = { like_count: s.like_count ?? 0, tip_total_cents: s.tip_total_cents ?? 0 }
+  }
+
+  const ppvRevenueMap: Record<string, number> = {}
+  for (const pay of ppvPayments ?? []) {
+    if (!pay.post_id) continue
+    ppvRevenueMap[pay.post_id] = (ppvRevenueMap[pay.post_id] ?? 0) + pay.amount_cents
+  }
+
   const rows = (posts ?? []).map(p => ({
     ...p,
-    media_count: mediaMap[p.id]?.count ?? 0,
-    has_video:   mediaMap[p.id]?.hasVideo ?? false,
+    media_count:    mediaMap[p.id]?.count ?? 0,
+    has_video:      mediaMap[p.id]?.hasVideo ?? false,
+    like_count:     statsMap[p.id]?.like_count ?? 0,
+    earnings_cents: (statsMap[p.id]?.tip_total_cents ?? 0) + (ppvRevenueMap[p.id] ?? 0),
   }))
 
   return (

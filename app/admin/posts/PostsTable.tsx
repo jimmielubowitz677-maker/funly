@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Pencil, Trash2, Image as ImageIcon, Video, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Pencil, Trash2, Image as ImageIcon, Video, Loader2, Heart, DollarSign } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +16,8 @@ interface PostRow {
   created_at: string
   media_count: number
   has_video: boolean
+  like_count?: number
+  earnings_cents?: number
 }
 
 interface PostsTableProps {
@@ -65,6 +67,7 @@ export default function PostsTable({ posts }: PostsTableProps) {
           <th className="px-3 py-3 text-left font-medium hidden sm:table-cell">Type</th>
           <th className="px-3 py-3 text-left font-medium hidden md:table-cell">Status</th>
           <th className="px-3 py-3 text-left font-medium hidden lg:table-cell">Media</th>
+          <th className="px-3 py-3 text-left font-medium hidden xl:table-cell">Stats</th>
           <th className="px-4 md:px-5 py-3 text-right font-medium">Actions</th>
         </tr>
       </thead>
@@ -99,6 +102,20 @@ export default function PostsTable({ posts }: PostsTableProps) {
                   </>
                 ) : (
                   <span className="text-zinc-700">—</span>
+                )}
+              </div>
+            </td>
+            <td className="px-3 py-4 hidden xl:table-cell">
+              <div className="flex items-center gap-3 text-xs text-zinc-500">
+                <span className="flex items-center gap-1" title="Likes">
+                  <Heart className="w-3.5 h-3.5 text-pink-500/70" />
+                  {(post.like_count ?? 0).toLocaleString()}
+                </span>
+                {(post.earnings_cents ?? 0) > 0 && (
+                  <span className="flex items-center gap-1 text-emerald-500/80" title="Earnings">
+                    <DollarSign className="w-3.5 h-3.5" />
+                    {((post.earnings_cents ?? 0) / 100).toFixed(2)}
+                  </span>
                 )}
               </div>
             </td>

@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existing) {
-      await service
+      const { error: updateErr } = await service
         .from('subscriptions')
         .update({
           status:               'active',
@@ -88,23 +88,34 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', existing.id)
 
+      if (updateErr) {
+        console.error('[webhook] subscription update failed:', updateErr)
+        return NextResponse.json({ error: 'Failed to renew subscription' }, { status: 500 })
+      }
+
       await service
         .from('payments')
         .update({ subscription_id: existing.id })
         .eq('id', payment.id)
     } else {
-      const { data: newSub } = await service
+      const { data: newSub, error: subInsertErr } = await service
         .from('subscriptions')
         .insert({
           subscriber_id:        payment.payer_id,
           creator_id:           payment.payee_id,
           status:               'active',
           price_paid_cents:     payment.amount_cents,
+          current_period_start: now.toISOString(),
           current_period_end:   periodEnd.toISOString(),
           plan_id:              planId,
         })
         .select('id')
         .single()
+
+      if (subInsertErr) {
+        console.error('[webhook] subscription insert failed:', subInsertErr)
+        return NextResponse.json({ error: 'Failed to activate subscription' }, { status: 500 })
+      }
 
       if (newSub) {
         await service

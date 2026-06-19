@@ -47,7 +47,7 @@ export default async function FeedPage({
     { count: subCount },
     { count: postCount },
   ] = await Promise.all([
-    service.from('users').select('username, display_name, is_verified, bio').eq('id', creatorId).maybeSingle(),
+    service.from('users').select('username, display_name, is_verified, bio, avatar_url, banner_url').eq('id', creatorId).maybeSingle(),
     service
       .from('posts')
       .select('*, media(id, url, media_type, sort_order)')
@@ -103,6 +103,8 @@ export default async function FeedPage({
     bio: creatorRow?.bio ?? '',
     subscriberCount: subCount ?? 0,
     postCount: postCount ?? 0,
+    avatarUrl: creatorRow?.avatar_url ?? null,
+    bannerUrl: creatorRow?.banner_url ?? null,
   }
 
   type MediaRow = { id: string; url: string; media_type: string; sort_order: number }
@@ -129,6 +131,7 @@ export default async function FeedPage({
         username: creator.username,
         initials: creator.initials,
         verified: creator.verified,
+        avatarUrl: creator.avatarUrl,
       },
       content: p.body ?? '',
       hasMedia: media.length > 0,

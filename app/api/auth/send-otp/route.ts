@@ -4,7 +4,7 @@ import { createHash, randomInt } from 'crypto'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM   = process.env.RESEND_FROM_EMAIL ?? 'CreatorHub <onboarding@resend.dev>'
+const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Funly <onboarding@resend.dev>'
 
 function generateCode() {
   return randomInt(100_000, 1_000_000).toString()
@@ -42,14 +42,14 @@ export async function POST(req: NextRequest) {
   const { error: emailError } = await resend.emails.send({
     from:    FROM,
     to:      email,
-    subject: `${code} — your CreatorHub sign-in code`,
+    subject: `${code} — your Funly sign-in code`,
     html: `
       <!DOCTYPE html>
       <html>
       <body style="margin:0;padding:0;background:#09090b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
         <div style="max-width:480px;margin:40px auto;padding:0 20px;">
           <div style="margin-bottom:28px;">
-            <span style="font-size:20px;font-weight:800;color:#fafafa;">CreatorHub</span>
+            <span style="font-size:20px;font-weight:800;color:#fafafa;">Funly</span>
           </div>
           <div style="background:#18181b;border:1px solid #27272a;border-radius:16px;padding:36px 32px;margin-bottom:20px;">
             <p style="margin:0 0 6px;font-size:14px;color:#a1a1aa;font-weight:500;">Your sign-in code</p>
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
             </p>
           </div>
           <p style="font-size:12px;color:#52525b;text-align:center;margin:0;">
-            Sent to ${email} · © CreatorHub
+            Sent to ${email} · © Funly
           </p>
         </div>
       </body>

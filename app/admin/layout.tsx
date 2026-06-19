@@ -24,7 +24,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
       {/* ── Mobile top nav ── */}
       <div className="md:hidden shrink-0 border-b border-zinc-800/60 bg-zinc-950">
-        <div className="flex items-center gap-1 overflow-x-auto px-3 py-3 no-scrollbar">
+        <div className="flex items-center gap-1 overflow-x-auto px-3 py-3 scrollbar-hidden">
           <div className="flex items-center gap-2 px-2 mr-1 shrink-0">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shrink-0">
               <Crown className="w-3.5 h-3.5 text-white" />

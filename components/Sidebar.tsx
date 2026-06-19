@@ -45,7 +45,7 @@ export default function Sidebar() {
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
             <Crown className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-lg tracking-tight">CreatorHub</span>
+          <span className="font-bold text-lg tracking-tight">Funly</span>
         </div>
 
         <nav className="flex flex-col gap-1 flex-1">
