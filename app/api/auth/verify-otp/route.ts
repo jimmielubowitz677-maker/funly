@@ -7,9 +7,12 @@ function hashCode(code: string) {
 }
 
 export async function POST(req: NextRequest) {
+  try {
   const body  = await req.json().catch(() => null)
   const email = typeof body?.email === 'string' ? body.email.toLowerCase().trim() : null
   const code  = typeof body?.code  === 'string' ? body.code.replace(/\D/g, '') : null
+
+  console.log('[verify-otp] request — email:', email, 'code length:', code?.length)
 
   if (!email || !code || code.length !== 6) {
     return NextResponse.json({ error: 'Email and 6-digit code are required' }, { status: 400 })
@@ -28,6 +31,8 @@ export async function POST(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
+
+  console.log('[verify-otp] OTP lookup — record:', record?.id ?? null, 'fetchError:', fetchError?.message ?? null)
 
   if (fetchError || !record) {
     return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 })
@@ -89,13 +94,26 @@ export async function POST(req: NextRequest) {
   const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase() || 'user'
   const username = `${emailPrefix}_${userId.slice(0, 6)}`
 
-  await supabase.from('users').upsert(
+  console.log('[verify-otp] upserting public.users — userId:', userId, 'username:', username, 'email:', email)
+
+  const { error: upsertError } = await supabase.from('users').upsert(
     { id: userId, username, email },
     { onConflict: 'id', ignoreDuplicates: true }
   )
+
+  if (upsertError) {
+    console.error('[verify-otp] public.users upsert FAILED — code:', upsertError.code, 'message:', upsertError.message, 'details:', upsertError.details, 'hint:', upsertError.hint)
+  } else {
+    console.log('[verify-otp] public.users upsert ok')
+  }
 
   return NextResponse.json({
     access_token:  session.access_token,
     refresh_token: session.refresh_token,
   })
+
+  } catch (err: unknown) {
+    console.error('[verify-otp] UNCAUGHT EXCEPTION:', err instanceof Error ? err.message : String(err))
+    return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
+  }
 }
