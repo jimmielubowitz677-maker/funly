@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
   }
 
   const code     = generateCode()
+  console.log(`[send-otp] code for ${email}: ${code}`)
   const supabase = getSupabaseServiceClient()
 
   // Invalidate any existing unused codes for this email before inserting a new one
