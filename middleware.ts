@@ -47,6 +47,23 @@ export async function middleware(request: NextRequest) {
   }
 
   supabaseResponse.headers.set('x-pathname', pathname)
+
+  // Fire-and-forget page view log — ignore errors so it never blocks the response
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (supabaseUrl && serviceKey) {
+    fetch(`${supabaseUrl}/rest/v1/page_views`, {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'apikey':        serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+        'Prefer':        'return=minimal',
+      },
+      body: JSON.stringify({ email: user?.email ?? null, path: pathname }),
+    }).catch(() => {})
+  }
+
   return supabaseResponse
 }
 

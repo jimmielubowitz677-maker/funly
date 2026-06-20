@@ -1,12 +1,12 @@
 import Link from 'next/link'
-import { Crown } from 'lucide-react'
+import { Lollipop } from 'lucide-react'
 
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
       <div className="text-center max-w-md">
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-pink-500/30">
-          <Crown className="w-7 h-7 text-white" />
+          <Lollipop className="w-7 h-7 text-white" style={{ transform: 'rotate(25deg)' }} />
         </div>
         <h1 className="text-6xl font-black text-white mb-2">404</h1>
         <p className="text-zinc-400 text-lg mb-1">Page not found</p>

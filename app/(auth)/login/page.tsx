@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Crown, Mail, Eye, EyeOff, KeyRound } from 'lucide-react'
+import { Lollipop, Mail, Eye, EyeOff, KeyRound } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -67,7 +67,7 @@ export default function LoginPage() {
       {/* Logo */}
       <div className="flex items-center justify-center gap-2.5 mb-8">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-lg shadow-pink-500/30">
-          <Crown className="w-5 h-5 text-white" />
+          <Lollipop className="w-5 h-5 text-white" style={{ transform: 'rotate(25deg)' }} />
         </div>
         <span className="font-bold text-xl">Funly</span>
       </div>

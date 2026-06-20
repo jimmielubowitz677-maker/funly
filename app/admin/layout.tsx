@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
 import Link from 'next/link'
-import { Crown, LayoutDashboard, FileText, Users, DollarSign, MessageSquare, UserCircle2, ChevronLeft, UserSquare2 } from 'lucide-react'
+import { Lollipop, LayoutDashboard, FileText, Users, DollarSign, MessageSquare, UserCircle2, ChevronLeft, UserSquare2, Activity } from 'lucide-react'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import ModelSwitcher from '@/components/admin/ModelSwitcher'
 
@@ -12,6 +12,7 @@ const navItems = [
   { href: '/admin/payments',    label: 'Payments',  icon: DollarSign      },
   { href: '/admin/messages',    label: 'Messages',  icon: MessageSquare   },
   { href: '/admin/profile',     label: 'Profile',   icon: UserCircle2     },
+  { href: '/admin/visitors',    label: 'Visitors',  icon: Activity        },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -67,7 +68,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="flex items-center gap-1 overflow-x-auto px-3 py-3 scrollbar-hidden">
           <div className="flex items-center gap-2 px-2 mr-1 shrink-0">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shrink-0">
-              <Crown className="w-3.5 h-3.5 text-white" />
+              <Lollipop className="w-3.5 h-3.5 text-white" style={{ transform: 'rotate(25deg)' }} />
             </div>
             <span className="font-bold text-sm whitespace-nowrap">Admin</span>
           </div>
@@ -102,7 +103,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <aside className="hidden md:flex w-56 shrink-0 border-r border-zinc-800/60 p-4 flex-col gap-1 sticky top-0 h-screen overflow-y-auto scrollbar-hidden">
         <div className="flex items-center gap-2 px-3 py-2 mb-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
-            <Crown className="w-4 h-4 text-white" />
+            <Lollipop className="w-4 h-4 text-white" style={{ transform: 'rotate(25deg)' }} />
           </div>
           <span className="font-bold text-sm">Admin Panel</span>
         </div>

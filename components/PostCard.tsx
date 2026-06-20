@@ -160,57 +160,58 @@ export default function PostCard({
         {/* Content */}
         <div className="px-5 pb-4">
           {isLocked ? (
-            <div>
-              {(post.content || post.hasMedia) && (
-                <div className="relative overflow-hidden mb-4 rounded-xl">
-                  {post.content && (
-                    <p className="text-zinc-400 text-sm leading-relaxed blur-sm select-none pointer-events-none line-clamp-2">
-                      {post.content}
-                    </p>
-                  )}
-                  {post.hasMedia && (
-                    allMedia[0] ? (
-                      allMedia[0].type === 'video' ? (
-                        <div className="mt-2 w-full h-40 rounded-xl blur-sm pointer-events-none bg-zinc-800 flex items-center justify-center">
-                          <Play className="w-8 h-8 text-zinc-600 fill-zinc-600" />
-                        </div>
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={allMedia[0].url} alt="" className="mt-2 w-full h-40 object-cover blur-sm pointer-events-none rounded-xl" />
-                      )
-                    ) : (
-                      <div className={cn('mt-2 w-full h-40 rounded-xl blur-sm pointer-events-none bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-700 to-zinc-800')} />
-                    )
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
-                </div>
+            <div className="relative overflow-hidden rounded-xl" style={{ minHeight: '200px' }}>
+              {/* Blurred preview layer */}
+              {post.content && (
+                <p className="text-zinc-400 text-sm leading-relaxed blur-sm select-none pointer-events-none line-clamp-2 mb-2">
+                  {post.content}
+                </p>
+              )}
+              {post.hasMedia ? (
+                allMedia[0] ? (
+                  allMedia[0].type === 'video' ? (
+                    <div className="w-full h-52 blur-sm pointer-events-none bg-zinc-800 flex items-center justify-center">
+                      <Play className="w-8 h-8 text-zinc-600 fill-zinc-600" />
+                    </div>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={allMedia[0].url} alt="" className="w-full h-52 object-cover blur-sm pointer-events-none" />
+                  )
+                ) : (
+                  <div className={cn('w-full h-52 blur-sm pointer-events-none bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-700 to-zinc-800')} />
+                )
+              ) : (
+                <div className={cn('w-full h-40 bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-800 to-zinc-900')} />
               )}
 
-              <div className="flex flex-col items-center gap-3 py-5 px-4 rounded-xl border border-zinc-800 bg-zinc-950/60">
-                <div className="w-10 h-10 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                  <Lock className="w-4 h-4 text-pink-400" />
+              {/* Overlay panel — floats on top of blurred content */}
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <div className="bg-black/60 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-5 flex flex-col items-center gap-3 mx-4 w-full max-w-xs">
+                  <div className="w-10 h-10 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center">
+                    <Lock className="w-4 h-4 text-pink-400" />
+                  </div>
+                  {post.type === 'premium' ? (
+                    <>
+                      <div className="text-center">
+                        <p className="font-semibold text-white text-sm">Premium Content</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">Subscribe to unlock all premium posts</p>
+                      </div>
+                      <Button variant="primary" size="sm" onClick={onSubscribe}>
+                        Subscribe — from $9.99/mo
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-center">
+                        <p className="font-semibold text-white text-sm">Pay-Per-View Post</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">One-time unlock for this exclusive post</p>
+                      </div>
+                      <Button variant="primary" size="sm" loading={loadingUnlock} onClick={() => onUnlock(post.id)}>
+                        {loadingUnlock ? 'Redirecting…' : `Unlock for $${post.ppvPrice?.toFixed(2)}`}
+                      </Button>
+                    </>
+                  )}
                 </div>
-                {post.type === 'premium' ? (
-                  <>
-                    <div className="text-center">
-                      <p className="font-semibold text-white text-sm">Premium Content</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">Subscribe to unlock all premium posts</p>
-                    </div>
-                    <Button variant="primary" size="sm" onClick={onSubscribe}>
-                      Subscribe — from $9.99/mo
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-center">
-                      <p className="font-semibold text-white text-sm">Pay-Per-View Post</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">One-time unlock for this exclusive post</p>
-                    </div>
-                    <Button variant="primary" size="sm" loading={loadingUnlock} onClick={() => onUnlock(post.id)}>
-                      {loadingUnlock ? 'Redirecting…' : `Unlock for $${post.ppvPrice?.toFixed(2)}`}
-                    </Button>
-                  </>
-                )}
               </div>
             </div>
           ) : (

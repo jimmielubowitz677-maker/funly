@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, MessageCircle, Star, Crown, LogOut, Shield, UserCircle } from 'lucide-react'
+import { Home, MessageCircle, Star, Lollipop, LogOut, Shield, UserCircle } from 'lucide-react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -44,7 +44,7 @@ export default function Sidebar({ isCreator = false }: { isCreator?: boolean }) 
       <aside className="hidden md:flex w-64 flex-shrink-0 h-screen sticky top-0 flex-col border-r border-zinc-800/60 bg-zinc-950 p-4">
         <div className="flex items-center gap-2.5 px-3 py-2 mb-6">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
-            <Crown className="w-5 h-5 text-white" />
+            <Lollipop className="w-5 h-5 text-white" style={{ transform: 'rotate(25deg)' }} />
           </div>
           <span className="font-bold text-lg tracking-tight">Funly</span>
         </div>

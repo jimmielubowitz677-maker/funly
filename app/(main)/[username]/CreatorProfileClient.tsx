@@ -19,6 +19,7 @@ interface CreatorInfo {
   bannerUrl: string | null
   subscriberCount: number
   postCount: number
+  displaySubscriberCount: number | null
 }
 
 interface CreatorProfileClientProps {
@@ -242,7 +243,7 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
           <p className="text-zinc-500 text-sm">@{creator.username}</p>
           {creator.bio && <p className="text-zinc-400 text-sm mt-2">{creator.bio}</p>}
           <div className="flex gap-4 mt-3">
-            <span className="text-xs sm:text-sm"><strong className="text-white">{creator.subscriberCount.toLocaleString()}</strong> <span className="text-zinc-500">subscribers</span></span>
+            <span className="text-xs sm:text-sm"><strong className="text-white">{(creator.displaySubscriberCount ?? creator.subscriberCount).toLocaleString()}</strong> <span className="text-zinc-500">subscribers</span></span>
             <span className="text-xs sm:text-sm"><strong className="text-white">{creator.postCount}</strong> <span className="text-zinc-500">posts</span></span>
           </div>
         </div>

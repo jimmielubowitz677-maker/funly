@@ -11,6 +11,7 @@ interface InitialProfile {
   bio: string
   avatarUrl: string | null
   bannerUrl: string | null
+  displaySubscriberCount: number | null
 }
 
 interface ProfileFormProps {
@@ -22,6 +23,9 @@ export default function ProfileForm({ userId, initialProfile }: ProfileFormProps
   const [displayName, setDisplayName] = useState(initialProfile.displayName)
   const [username, setUsername]       = useState(initialProfile.username)
   const [bio, setBio]                 = useState(initialProfile.bio)
+  const [displaySubCount, setDisplaySubCount] = useState<string>(
+    initialProfile.displaySubscriberCount != null ? String(initialProfile.displaySubscriberCount) : ''
+  )
 
   // These track the currently-saved URLs (updated after every successful save).
   const [savedAvatarUrl, setSavedAvatarUrl] = useState<string | null>(initialProfile.avatarUrl)
@@ -95,8 +99,7 @@ export default function ProfileForm({ userId, initialProfile }: ProfileFormProps
     fd.append('display_name',      displayName)
     fd.append('username',          username)
     fd.append('bio',               bio)
-    // Tell the server what the current saved URLs are so it can preserve them
-    // when no new file was selected.
+    fd.append('display_subscriber_count', displaySubCount.trim())
     fd.append('current_avatar_url', savedAvatarUrl ?? '')
     fd.append('current_banner_url', savedBannerUrl ?? '')
     if (avatarFile) fd.append('avatar', avatarFile)
@@ -293,6 +296,31 @@ export default function ProfileForm({ userId, initialProfile }: ProfileFormProps
             className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-4 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-colors resize-none"
           />
           <p className="text-xs text-zinc-600 text-right">{bio.length}/300</p>
+        </div>
+      </div>
+
+      {/* ── Subscriber display override ── */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-300">Subscriber Count Display</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">Override the number shown publicly. Leave blank to show the real count.</p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="display-sub-count" className="text-sm font-medium text-zinc-300">
+            Displayed subscriber count
+          </label>
+          <input
+            id="display-sub-count"
+            type="number"
+            min="0"
+            placeholder={`Real count (auto)`}
+            value={displaySubCount}
+            onChange={e => setDisplaySubCount(e.target.value)}
+            className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-4 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-colors"
+          />
+          <p className="text-xs text-zinc-600">
+            {displaySubCount.trim() ? `Will show: ${Number(displaySubCount).toLocaleString()} subscribers` : 'Will show the real subscriber count'}
+          </p>
         </div>
       </div>
 

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Crown, Eye, EyeOff, KeyRound, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Lollipop, Eye, EyeOff, KeyRound, RotateCcw } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -168,7 +168,7 @@ function VerifyContent() {
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black/40">
         <div className="flex items-center justify-center gap-2.5 mb-8">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-lg shadow-pink-500/30">
-            <Crown className="w-5 h-5 text-white" />
+            <Lollipop className="w-5 h-5 text-white" style={{ transform: 'rotate(25deg)' }} />
           </div>
           <span className="font-bold text-xl">Funly</span>
         </div>
@@ -259,7 +259,7 @@ function VerifyContent() {
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl shadow-black/40">
       <div className="flex items-center justify-center gap-2.5 mb-8">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-lg shadow-pink-500/30">
-          <Crown className="w-5 h-5 text-white" />
+          <Lollipop className="w-5 h-5 text-white" style={{ transform: 'rotate(25deg)' }} />
         </div>
         <span className="font-bold text-xl">Funly</span>
       </div>

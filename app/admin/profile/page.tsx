@@ -17,7 +17,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await service
     .from('users')
-    .select('username, display_name, bio, avatar_url, banner_url')
+    .select('username, display_name, bio, avatar_url, banner_url, display_subscriber_count')
     .eq('id', creatorId)
     .maybeSingle()
 
@@ -33,11 +33,12 @@ export default async function ProfilePage() {
       <ProfileForm
         userId={creatorId}
         initialProfile={{
-          username:    profile?.username    ?? '',
-          displayName: profile?.display_name ?? '',
-          bio:         profile?.bio          ?? '',
-          avatarUrl:   profile?.avatar_url   ?? null,
-          bannerUrl:   profile?.banner_url   ?? null,
+          username:               profile?.username    ?? '',
+          displayName:            profile?.display_name ?? '',
+          bio:                    profile?.bio          ?? '',
+          avatarUrl:              profile?.avatar_url   ?? null,
+          bannerUrl:              profile?.banner_url   ?? null,
+          displaySubscriberCount: (profile as unknown as { display_subscriber_count: number | null })?.display_subscriber_count ?? null,
         }}
       />
     </div>

@@ -17,13 +17,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid form data' }, { status: 400 })
   }
 
-  const displayName      = formData.get('display_name')      as string | null
-  const username         = formData.get('username')           as string | null
-  const bio              = formData.get('bio')                as string | null
-  const currentAvatarUrl = formData.get('current_avatar_url') as string | null
-  const currentBannerUrl = formData.get('current_banner_url') as string | null
-  const avatarFile       = formData.get('avatar')             as File | null
-  const bannerFile       = formData.get('banner')             as File | null
+  const displayName          = formData.get('display_name')           as string | null
+  const username             = formData.get('username')               as string | null
+  const bio                  = formData.get('bio')                    as string | null
+  const displaySubCountRaw   = formData.get('display_subscriber_count') as string | null
+  const currentAvatarUrl     = formData.get('current_avatar_url')    as string | null
+  const currentBannerUrl     = formData.get('current_banner_url')    as string | null
+  const avatarFile           = formData.get('avatar')                as File | null
+  const bannerFile           = formData.get('banner')                as File | null
+
+  const displaySubCount = displaySubCountRaw?.trim()
+    ? parseInt(displaySubCountRaw.trim(), 10)
+    : null
 
   console.log('[profile] FormData fields ->', {
     displayName,
@@ -113,11 +118,12 @@ export async function POST(request: NextRequest) {
 
   // ── DB write ──
   const updates = {
-    username:     uname,
-    display_name: displayName?.trim() || null,
-    bio:          bio?.trim()         || null,
-    avatar_url:   newAvatarUrl,
-    banner_url:   newBannerUrl,
+    username:                  uname,
+    display_name:              displayName?.trim() || null,
+    bio:                       bio?.trim()         || null,
+    avatar_url:                newAvatarUrl,
+    banner_url:                newBannerUrl,
+    display_subscriber_count:  displaySubCount,
   }
 
   console.log('[profile] writing to DB ->', { modelId, updates })
