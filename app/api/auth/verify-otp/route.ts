@@ -45,9 +45,12 @@ export async function POST(req: NextRequest) {
   })
 
   if (linkError || !linkData?.properties?.hashed_token) {
-    console.error('[verify-otp] generateLink failed:', linkError?.message)
+    console.error('[verify-otp] generateLink failed — error:', JSON.stringify(linkError))
+    console.error('[verify-otp] generateLink linkData:', JSON.stringify(linkData))
     return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
   }
+
+  console.log('[verify-otp] generateLink ok — hashed_token present, exchanging...')
 
   // Exchange the token for a real session server-side
   const verifyRes = await fetch(
@@ -65,14 +68,19 @@ export async function POST(req: NextRequest) {
     }
   )
 
-  const session = await verifyRes.json() as {
-    access_token?: string
-    refresh_token?: string
-    user?: { id: string }
+  const rawText = await verifyRes.text()
+  console.log('[verify-otp] /auth/v1/verify status:', verifyRes.status, 'body:', rawText)
+
+  let session: { access_token?: string; refresh_token?: string; user?: { id: string } }
+  try {
+    session = JSON.parse(rawText)
+  } catch {
+    console.error('[verify-otp] response was not JSON')
+    return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
   }
 
   if (!session.access_token || !session.refresh_token) {
-    console.error('[verify-otp] session exchange failed:', session)
+    console.error('[verify-otp] session exchange missing tokens — full response:', session)
     return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
   }
 

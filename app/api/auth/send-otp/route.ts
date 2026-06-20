@@ -18,7 +18,10 @@ export async function POST(req: NextRequest) {
   const body  = await req.json().catch(() => null)
   const email = typeof body?.email === 'string' ? body.email.toLowerCase().trim() : null
 
+  console.log('[send-otp] route hit — raw body email:', body?.email, '→ parsed:', email)
+
   if (!email || !email.includes('@')) {
+    console.log('[send-otp] rejected: invalid email')
     return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
   }
 
