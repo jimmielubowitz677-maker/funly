@@ -52,20 +52,14 @@ export default function LoginPage() {
     setError(null)
     setLoading(true)
 
-    const res  = await fetch('/api/auth/send-otp', {
+    const res = await fetch('/api/auth/send-otp', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ email }),
     })
-    const data = await res.json()
 
-    if (!res.ok) {
-      setError(data.error ?? 'Failed to send code')
-      setLoading(false)
-      return
-    }
-
-    router.push(`/verify?email=${encodeURIComponent(email)}`)
+    const warn = !res.ok
+    router.push(`/verify?email=${encodeURIComponent(email)}${warn ? '&warn=1' : ''}`)
   }
 
   return (

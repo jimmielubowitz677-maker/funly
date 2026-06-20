@@ -12,28 +12,20 @@ export default function RegisterPage() {
 
   const [email, setEmail]     = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
     setLoading(true)
 
-    const res  = await fetch('/api/auth/send-otp', {
+    const res = await fetch('/api/auth/send-otp', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ email }),
     })
-    const data = await res.json()
 
-    if (!res.ok) {
-      setError(data.error ?? 'Failed to send code')
-      setLoading(false)
-      return
-    }
-
+    const warn = !res.ok
     // mode=register tells /verify to show the Set Password step after OTP success
-    router.push(`/verify?email=${encodeURIComponent(email)}&mode=register`)
+    router.push(`/verify?email=${encodeURIComponent(email)}&mode=register${warn ? '&warn=1' : ''}`)
   }
 
   return (
@@ -63,12 +55,6 @@ export default function RegisterPage() {
           autoComplete="email"
           autoFocus
         />
-
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-400">
-            {error}
-          </div>
-        )}
 
         <Button
           type="submit"

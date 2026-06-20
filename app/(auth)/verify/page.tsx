@@ -16,6 +16,7 @@ function VerifyContent() {
   const searchParams = useSearchParams()
   const email        = searchParams.get('email') ?? ''
   const isRegister   = searchParams.get('mode') === 'register'
+  const warnDelivery = searchParams.get('warn') === '1'
   const supabase     = getSupabaseBrowserClient()
 
   // ── OTP step state ──
@@ -287,7 +288,13 @@ function VerifyContent() {
 
       <h1 className="text-2xl font-bold text-center mb-1">Check your email</h1>
       <p className="text-zinc-500 text-sm text-center mb-1">We sent a 6-digit code to</p>
-      <p className="font-semibold text-sm text-center text-white mb-8 truncate px-4">{email}</p>
+      <p className="font-semibold text-sm text-center text-white mb-4 truncate px-4">{email}</p>
+
+      {warnDelivery && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm text-amber-400 text-center mb-4">
+          Email delivery may be delayed — if you don&apos;t receive the code, use &ldquo;Resend code&rdquo; below.
+        </div>
+      )}
 
       <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 mb-5" onPaste={handlePaste}>
         {otp.map((digit, i) => (
