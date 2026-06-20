@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, AlertCircle, X, Loader2, Crown, Star, Sparkles, Check } from 'lucide-react'
+import Link from 'next/link'
+import { CheckCircle, AlertCircle, X, Loader2, Crown, Star, Sparkles, Check, MessageCircle } from 'lucide-react'
 import PostCard, { type Post } from '@/components/PostCard'
 import Button from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,7 @@ interface CreatorProfileClientProps {
   isSubscribed: boolean
   unlockedPpvIds: string[]
   viewerId: string
+  likedPostIds?: string[]
   paymentStatus?: string
 }
 
@@ -61,7 +63,7 @@ const PLANS = [
   },
 ]
 
-export default function CreatorProfileClient({ creator, posts, isSubscribed, unlockedPpvIds, viewerId, paymentStatus }: CreatorProfileClientProps) {
+export default function CreatorProfileClient({ creator, posts, isSubscribed, unlockedPpvIds, viewerId, likedPostIds = [], paymentStatus }: CreatorProfileClientProps) {
   const router = useRouter()
   const [unlockedPosts] = useState<Set<string>>(new Set(unlockedPpvIds))
   const [unlockingPostId, setUnlockingPostId] = useState<string | null>(null)
@@ -72,8 +74,8 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
   const [paymentProcessing, setPaymentProcessing] = useState(false)
   const [pollTimedOut, setPollTimedOut] = useState(false)
 
-  // Build subscription set (single creator here, so just one ID)
   const subscribedCreatorIds = useMemo(() => new Set(isSubscribed ? [creator.id] : []), [isSubscribed, creator.id])
+  const likedSet = useMemo(() => new Set(likedPostIds), [likedPostIds])
 
   // Handle payment=success redirect
   useEffect(() => {
@@ -213,11 +215,21 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
                 creator.initials
               )}
             </div>
-            <span className={`text-xs px-2.5 py-1 rounded-lg font-semibold border mb-1 shrink-0 ${
-              isSubscribed ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'
-            }`}>
-              {isSubscribed ? '✓ Subscribed' : isOwnProfile ? '👑 Your Profile' : 'Not subscribed'}
-            </span>
+            <div className="flex items-center gap-2 mb-1 shrink-0 flex-wrap justify-end">
+              {!isOwnProfile && (
+                <Link href={`/messages?with=${creator.username}`}>
+                  <Button variant="outline" size="sm">
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Message
+                  </Button>
+                </Link>
+              )}
+              <span className={`text-xs px-2.5 py-1 rounded-lg font-semibold border ${
+                isSubscribed ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'
+              }`}>
+                {isSubscribed ? '✓ Subscribed' : isOwnProfile ? '👑 Your Profile' : 'Not subscribed'}
+              </span>
+            </div>
           </div>
           <h1 className="font-bold text-xl flex items-center gap-1.5">
             {creator.name}
@@ -314,8 +326,10 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
               isSubscribed={subscribedCreatorIds.has(post.creatorId)}
               unlockedPosts={unlockedPosts}
               onUnlock={handleUnlock}
-              onSubscribe={() => {}} // already on the creator page, plan cards are above
+              onSubscribe={() => {}}
               loadingUnlock={unlockingPostId === post.id}
+              userId={viewerId}
+              isLiked={likedSet.has(post.id)}
             />
           ))}
         </div>

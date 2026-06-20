@@ -9,13 +9,18 @@ interface FeedClientProps {
   posts: Post[]
   subscribedCreatorIds: string[]
   unlockedPpvIds: string[]
+  userId?: string
+  likedPostIds?: string[]
 }
 
 export default function FeedClient({
   posts,
   subscribedCreatorIds,
   unlockedPpvIds,
+  userId,
+  likedPostIds = [],
 }: FeedClientProps) {
+  const likedSet = useMemo(() => new Set(likedPostIds), [likedPostIds])
   const router = useRouter()
 
   const [unlockedPosts] = useState<Set<string>>(new Set(unlockedPpvIds))
@@ -80,6 +85,8 @@ export default function FeedClient({
               onUnlock={handleUnlock}
               onSubscribe={() => router.push(`/${post.creator.username}`)}
               loadingUnlock={unlockingPostId === post.id}
+              userId={userId}
+              isLiked={likedSet.has(post.id)}
             />
           ))}
         </div>

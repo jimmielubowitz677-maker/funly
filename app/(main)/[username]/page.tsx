@@ -51,16 +51,19 @@ export default async function CreatorPage({
     { data: ppvPayments },
     { count: subCount },
     { count: postCount },
+    { data: likedRows },
   ] = await Promise.all([
     service.from('posts').select('*, media(id, url, media_type, sort_order)').eq('creator_id', creator.id).eq('is_published', true).order('published_at', { ascending: false }).limit(20),
     service.from('subscriptions').select('plan_id').eq('subscriber_id', user.id).eq('creator_id', creator.id).eq('status', 'active').gt('current_period_end', new Date().toISOString()).maybeSingle(),
     service.from('payments').select('post_id').eq('payer_id', user.id).eq('status', 'completed').not('post_id', 'is', null),
     service.from('subscriptions').select('*', { count: 'exact', head: true }).eq('creator_id', creator.id).eq('status', 'active'),
     service.from('posts').select('*', { count: 'exact', head: true }).eq('creator_id', creator.id).eq('is_published', true),
+    service.from('likes').select('post_id').eq('user_id', user.id),
   ])
 
   const isSubscribed = !!subscription
   const unlockedPpvIds = (ppvPayments ?? []).map(p => (p as unknown as { post_id: string }).post_id).filter(Boolean)
+  const likedPostIds = new Set((likedRows ?? []).map((r: { post_id: string }) => r.post_id))
 
   type MediaRow = { id: string; url: string; media_type: string; sort_order: number }
   type PostRow = { id: string; creator_id: string; body: string | null; post_type: 'free' | 'premium' | 'ppv'; ppv_price_cents: number | null; like_count: number; comment_count: number; published_at: string | null; created_at: string; media: MediaRow[] }
@@ -89,6 +92,8 @@ export default async function CreatorPage({
       likes: p.like_count,
       comments: p.comment_count,
       timestamp: relativeTime(p.published_at ?? p.created_at),
+      commentsDisabled: (p as unknown as { comments_disabled: boolean }).comments_disabled ?? false,
+      displayLikeCount: (p as unknown as { display_like_count: number | null }).display_like_count ?? null,
     }
   })
 
@@ -110,6 +115,7 @@ export default async function CreatorPage({
       isSubscribed={isSubscribed}
       unlockedPpvIds={unlockedPpvIds}
       viewerId={user.id}
+      likedPostIds={Array.from(likedPostIds)}
       paymentStatus={searchParams.payment}
     />
   )

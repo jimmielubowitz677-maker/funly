@@ -118,10 +118,14 @@ function VerifyContent() {
   // ── Resend OTP ──
   async function handleResend() {
     setResending(true); setError(null)
-    await fetch('/api/auth/send-otp', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
+    try {
+      await fetch('/api/auth/send-otp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+    } catch {
+      // network error — still reset UI so user can retry
+    }
     setResending(false); setCountdown(RESEND_DELAY)
     setOtp(Array(6).fill(''))
     setTimeout(() => inputRefs.current[0]?.focus(), 50)

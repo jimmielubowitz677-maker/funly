@@ -44,16 +44,18 @@ export default async function FeedPage() {
   )
 
   // Fetch recent posts from all creators
-  const [{ data: rawPosts }, { data: subscriptions }, { data: ppvPayments }] = await Promise.all([
+  const [{ data: rawPosts }, { data: subscriptions }, { data: ppvPayments }, { data: likedRows }] = await Promise.all([
     creatorIds.length
       ? service.from('posts').select('*, media(id, url, media_type, sort_order)').in('creator_id', creatorIds).eq('is_published', true).order('published_at', { ascending: false }).limit(30)
       : Promise.resolve({ data: [] }),
     service.from('subscriptions').select('creator_id').eq('subscriber_id', user.id).eq('status', 'active').gt('current_period_end', new Date().toISOString()),
     service.from('payments').select('post_id').eq('payer_id', user.id).eq('status', 'completed').not('post_id', 'is', null),
+    service.from('likes').select('post_id').eq('user_id', user.id),
   ])
 
   const subscribedCreatorIds = (subscriptions ?? []).map((s: { creator_id: string }) => s.creator_id)
   const unlockedPpvIds = (ppvPayments ?? []).map(p => (p as unknown as { post_id: string }).post_id).filter(Boolean)
+  const likedPostIds = new Set((likedRows ?? []).map((r: { post_id: string }) => r.post_id))
 
   // Build posts array
   type MediaRow = { id: string; url: string; media_type: string; sort_order: number }
@@ -83,6 +85,8 @@ export default async function FeedPage() {
       likes: p.like_count,
       comments: p.comment_count,
       timestamp: relativeTime(p.published_at ?? p.created_at),
+      commentsDisabled: (p as unknown as { comments_disabled: boolean }).comments_disabled ?? false,
+      displayLikeCount: (p as unknown as { display_like_count: number | null }).display_like_count ?? null,
     }
   })
 
@@ -91,6 +95,8 @@ export default async function FeedPage() {
       posts={posts}
       subscribedCreatorIds={subscribedCreatorIds}
       unlockedPpvIds={unlockedPpvIds}
+      userId={user.id}
+      likedPostIds={Array.from(likedPostIds)}
     />
   )
 }

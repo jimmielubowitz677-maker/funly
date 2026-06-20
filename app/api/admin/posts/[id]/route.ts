@@ -28,7 +28,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
 
-  const { title, body: postBody, post_type, ppv_price_cents, is_published, new_media, delete_media_ids } = body
+  const { title, body: postBody, post_type, ppv_price_cents, is_published, new_media, delete_media_ids, comments_disabled, display_like_count } = body
   const service = getSupabaseServiceClient()
 
   const { data: postRow } = await service.from('posts').select('creator_id').eq('id', params.id).maybeSingle()
@@ -38,13 +38,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const { error: updateErr } = await service
     .from('posts')
     .update({
-      title:           title?.trim() || null,
-      body:            postBody?.trim() || null,
-      post_type:       post_type ?? 'free',
-      ppv_price_cents: post_type === 'ppv' ? (ppv_price_cents ?? null) : null,
-      is_premium:      post_type !== 'free',
-      is_published:    !!is_published,
-      published_at:    is_published ? new Date().toISOString() : null,
+      title:               title?.trim() || null,
+      body:                postBody?.trim() || null,
+      post_type:           post_type ?? 'free',
+      ppv_price_cents:     post_type === 'ppv' ? (ppv_price_cents ?? null) : null,
+      is_premium:          post_type !== 'free',
+      is_published:        !!is_published,
+      published_at:        is_published ? new Date().toISOString() : null,
+      comments_disabled:   typeof comments_disabled === 'boolean' ? comments_disabled : undefined,
+      display_like_count:  display_like_count !== undefined ? (display_like_count ?? null) : undefined,
     })
     .eq('id', params.id)
 

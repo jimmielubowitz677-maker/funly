@@ -23,6 +23,8 @@ interface PostData {
   post_type: 'free' | 'premium' | 'ppv'
   ppv_price_cents: number | null
   is_published: boolean
+  comments_disabled?: boolean
+  display_like_count?: number | null
 }
 
 interface PostFormProps {
@@ -49,10 +51,12 @@ const TYPE_DESC   = {
 export default function PostForm({ mode = 'create', post, existingMedia = [] }: PostFormProps) {
   const router = useRouter()
 
-  const [title,       setTitle]       = useState(post?.title ?? '')
-  const [body,        setBody]        = useState(post?.body ?? '')
-  const [postType,    setPostType]    = useState<'free' | 'premium' | 'ppv'>(post?.post_type ?? 'free')
-  const [ppvPrice,    setPpvPrice]    = useState(post?.ppv_price_cents ? String(post.ppv_price_cents / 100) : '')
+  const [title,              setTitle]              = useState(post?.title ?? '')
+  const [body,               setBody]               = useState(post?.body ?? '')
+  const [postType,           setPostType]           = useState<'free' | 'premium' | 'ppv'>(post?.post_type ?? 'free')
+  const [ppvPrice,           setPpvPrice]           = useState(post?.ppv_price_cents ? String(post.ppv_price_cents / 100) : '')
+  const [commentsDisabled,   setCommentsDisabled]   = useState(post?.comments_disabled ?? false)
+  const [displayLikeCount,   setDisplayLikeCount]   = useState(post?.display_like_count != null ? String(post.display_like_count) : '')
   const isPublished = post?.is_published ?? false
 
   const [queued,        setQueued]        = useState<QueuedFile[]>([])
@@ -151,13 +155,15 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title:           title.trim() || null,
-        body:            body.trim() || null,
-        post_type:       postType,
-        ppv_price_cents: postType === 'ppv' ? Math.round(parseFloat(ppvPrice) * 100) : null,
-        is_published:    publish,
-        new_media:       uploadedMedia,
-        delete_media_ids: deletedIds,
+        title:               title.trim() || null,
+        body:                body.trim() || null,
+        post_type:           postType,
+        ppv_price_cents:     postType === 'ppv' ? Math.round(parseFloat(ppvPrice) * 100) : null,
+        is_published:        publish,
+        new_media:           uploadedMedia,
+        delete_media_ids:    deletedIds,
+        comments_disabled:   commentsDisabled,
+        display_like_count:  displayLikeCount !== '' ? parseInt(displayLikeCount, 10) : null,
       }),
     })
 
@@ -386,6 +392,49 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
               className="max-w-[140px]"
             />
           )}
+        </div>
+
+        {/* ── Creator controls ── */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-zinc-300">Creator Controls</h2>
+
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={commentsDisabled}
+              onClick={() => setCommentsDisabled(v => !v)}
+              className={cn(
+                'relative w-9 h-5 rounded-full transition-colors shrink-0',
+                commentsDisabled ? 'bg-pink-500' : 'bg-zinc-700'
+              )}
+            >
+              <span className={cn(
+                'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                commentsDisabled ? 'translate-x-4' : 'translate-x-0'
+              )} />
+            </button>
+            <div>
+              <p className="text-sm font-medium text-zinc-200">Disable comments</p>
+              <p className="text-xs text-zinc-500">Hides the comment section on this post</p>
+            </div>
+          </label>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="display-like-count" className="text-sm font-medium text-zinc-300">
+              Custom like count display
+            </label>
+            <input
+              id="display-like-count"
+              type="number"
+              min="0"
+              placeholder={`Leave blank to show real count`}
+              value={displayLikeCount}
+              onChange={e => setDisplayLikeCount(e.target.value)}
+              className="w-48 rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-colors"
+            />
+            <p className="text-xs text-zinc-500">Overrides the displayed like count without changing real likes</p>
+          </div>
         </div>
 
         {/* ── Actions ── */}

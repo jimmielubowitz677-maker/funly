@@ -99,36 +99,72 @@ export type Database = {
       }
       posts: {
         Row: {
-          id:              string
-          creator_id:      string
-          title:           string | null
-          body:            string | null
-          post_type:       'free' | 'premium' | 'ppv'
-          ppv_price_cents: number | null
-          is_premium:      boolean
-          is_published:    boolean
-          published_at:    string | null
-          like_count:      number
-          comment_count:   number
-          tip_total_cents: number
-          created_at:      string
-          updated_at:      string
+          id:                  string
+          creator_id:          string
+          title:               string | null
+          body:                string | null
+          post_type:           'free' | 'premium' | 'ppv'
+          ppv_price_cents:     number | null
+          is_premium:          boolean
+          is_published:        boolean
+          published_at:        string | null
+          like_count:          number
+          comment_count:       number
+          tip_total_cents:     number
+          comments_disabled:   boolean
+          display_like_count:  number | null
+          created_at:          string
+          updated_at:          string
         }
         Insert: {
-          id?:              string
-          creator_id:       string
-          title?:           string | null
-          body?:            string | null
-          post_type?:       'free' | 'premium' | 'ppv'
-          ppv_price_cents?: number | null
-          is_premium?:      boolean
-          is_published?:    boolean
-          published_at?:    string | null
-          like_count?:      number
-          comment_count?:   number
-          tip_total_cents?: number
+          id?:                  string
+          creator_id:           string
+          title?:               string | null
+          body?:                string | null
+          post_type?:           'free' | 'premium' | 'ppv'
+          ppv_price_cents?:     number | null
+          is_premium?:          boolean
+          is_published?:        boolean
+          published_at?:        string | null
+          like_count?:          number
+          comment_count?:       number
+          tip_total_cents?:     number
+          comments_disabled?:   boolean
+          display_like_count?:  number | null
         }
         Update: Partial<Database['public']['Tables']['posts']['Insert']>
+        Relationships: never[]
+      }
+      likes: {
+        Row: {
+          user_id:    string
+          post_id:    string
+          created_at: string
+        }
+        Insert: {
+          user_id:     string
+          post_id:     string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['likes']['Insert']>
+        Relationships: never[]
+      }
+      comments: {
+        Row: {
+          id:         string
+          post_id:    string
+          user_id:    string
+          body:       string
+          created_at: string
+        }
+        Insert: {
+          id?:         string
+          post_id:     string
+          user_id:     string
+          body:        string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['comments']['Insert']>
         Relationships: never[]
       }
       media: {

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Heart, MessageSquare, Share2, Lock, Eye, Play } from 'lucide-react'
+import Link from 'next/link'
+import { Heart, MessageSquare, Share2, Lock, Eye, Play, Send, ChevronDown, ChevronUp } from 'lucide-react'
 import Avatar from './ui/Avatar'
 import Badge from './ui/Badge'
 import Button from './ui/Button'
@@ -24,6 +25,16 @@ export interface Post {
   likes: number
   comments: number
   timestamp: string
+  commentsDisabled?: boolean
+  displayLikeCount?: number | null
+}
+
+interface CommentRow {
+  id: string
+  body: string
+  created_at: string
+  user_id: string
+  users: { username: string; display_name: string | null; avatar_url: string | null } | null
 }
 
 interface PostCardProps {
@@ -33,18 +44,28 @@ interface PostCardProps {
   onUnlock: (id: string) => void
   onSubscribe: () => void
   loadingUnlock?: boolean
+  userId?: string
+  isLiked?: boolean
 }
 
-export default function PostCard({ post, isSubscribed, unlockedPosts, onUnlock, onSubscribe, loadingUnlock }: PostCardProps) {
-  const [liked,         setLiked]         = useState(false)
-  const [likeCount,     setLikeCount]     = useState(post.likes)
+export default function PostCard({
+  post, isSubscribed, unlockedPosts, onUnlock, onSubscribe, loadingUnlock, userId, isLiked: initialIsLiked = false,
+}: PostCardProps) {
+  const [liked,         setLiked]         = useState(initialIsLiked)
+  const [likeCount,     setLikeCount]     = useState(post.displayLikeCount != null ? post.displayLikeCount : post.likes)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [showComments,  setShowComments]  = useState(false)
+  const [comments,      setComments]      = useState<CommentRow[] | null>(null)
+  const [loadingComments, setLoadingComments] = useState(false)
+  const [commentText,   setCommentText]   = useState('')
+  const [postingComment, setPostingComment] = useState(false)
+  const [commentCount,  setCommentCount]  = useState(post.comments)
+  const [shareToast,    setShareToast]    = useState(false)
 
   const isLocked =
     (post.type === 'premium' && !isSubscribed) ||
     (post.type === 'ppv' && !isSubscribed && !unlockedPosts.has(post.id))
 
-  // Unified media list: prefer mediaItems, fall back to single mediaUrl
   const allMedia: LightboxItem[] =
     post.mediaItems?.length
       ? post.mediaItems
@@ -52,29 +73,77 @@ export default function PostCard({ post, isSubscribed, unlockedPosts, onUnlock, 
         ? [{ url: post.mediaUrl, type: 'image' }]
         : []
 
-  function handleLike() {
+  async function handleLike() {
+    if (!userId) return
     setLiked(l => !l)
-    setLikeCount(c => (liked ? c - 1 : c + 1))
+    setLikeCount(c => liked ? c - 1 : c + 1)
+    try {
+      const res  = await fetch(`/api/posts/${post.id}/like`, { method: 'POST' })
+      const data = await res.json() as { liked: boolean; count: number }
+      setLiked(data.liked)
+      setLikeCount(post.displayLikeCount != null ? post.displayLikeCount : data.count)
+    } catch {
+      setLiked(l => !l)
+      setLikeCount(c => liked ? c + 1 : c - 1)
+    }
   }
 
-  function openLightbox(i: number) {
-    setLightboxIndex(i)
+  async function toggleComments() {
+    if (!showComments && comments === null) {
+      setLoadingComments(true)
+      try {
+        const res  = await fetch(`/api/posts/${post.id}/comments`)
+        const data = await res.json() as { comments: CommentRow[] }
+        setComments(data.comments ?? [])
+      } finally {
+        setLoadingComments(false)
+      }
+    }
+    setShowComments(v => !v)
+  }
+
+  async function handleComment(e: React.FormEvent) {
+    e.preventDefault()
+    const text = commentText.trim()
+    if (!text || postingComment) return
+    setPostingComment(true)
+    try {
+      const res  = await fetch(`/api/posts/${post.id}/comments`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: text }),
+      })
+      const data = await res.json() as { comment: CommentRow }
+      if (res.ok) {
+        setComments(prev => [...(prev ?? []), data.comment])
+        setCommentCount(c => c + 1)
+        setCommentText('')
+      }
+    } finally {
+      setPostingComment(false)
+    }
+  }
+
+  async function handleShare() {
+    const url = `${window.location.origin}/${post.creator.username}`
+    if (navigator.share) {
+      navigator.share({ url }).catch(() => {})
+    } else {
+      await navigator.clipboard.writeText(url).catch(() => {})
+      setShareToast(true)
+      setTimeout(() => setShareToast(false), 2500)
+    }
   }
 
   return (
     <>
       {lightboxIndex !== null && (
-        <MediaLightbox
-          items={allMedia}
-          initialIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
+        <MediaLightbox items={allMedia} initialIndex={lightboxIndex} onClose={() => setLightboxIndex(null)} />
       )}
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors duration-200">
-        {/* Header */}
+        {/* Header — links to creator profile */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4">
-          <div className="flex items-center gap-3">
+          <Link href={`/${post.creator.username}`} className="flex items-center gap-3 hover:opacity-90 transition-opacity">
             <Avatar initials={post.creator.initials} src={post.creator.avatarUrl} verified={post.creator.verified} />
             <div>
               <div className="flex items-center gap-2">
@@ -85,14 +154,13 @@ export default function PostCard({ post, isSubscribed, unlockedPosts, onUnlock, 
                 @{post.creator.username} · {post.timestamp}
               </span>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Content */}
         <div className="px-5 pb-4">
           {isLocked ? (
             <div>
-              {/* Blurred teaser */}
               {(post.content || post.hasMedia) && (
                 <div className="relative overflow-hidden mb-4 rounded-xl">
                   {post.content && (
@@ -122,7 +190,6 @@ export default function PostCard({ post, isSubscribed, unlockedPosts, onUnlock, 
                 <div className="w-10 h-10 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center">
                   <Lock className="w-4 h-4 text-pink-400" />
                 </div>
-
                 {post.type === 'premium' ? (
                   <>
                     <div className="text-center">
@@ -151,14 +218,8 @@ export default function PostCard({ post, isSubscribed, unlockedPosts, onUnlock, 
               {post.content && (
                 <p className="text-zinc-300 text-sm leading-relaxed">{post.content}</p>
               )}
-
               {post.hasMedia && (
-                <MediaGrid
-                  items={allMedia}
-                  gradient={post.mediaGradient}
-                  onOpen={openLightbox}
-                  hasMedia={post.hasMedia}
-                />
+                <MediaGrid items={allMedia} gradient={post.mediaGradient} onOpen={i => setLightboxIndex(i)} hasMedia={post.hasMedia} />
               )}
             </>
           )}
@@ -166,42 +227,116 @@ export default function PostCard({ post, isSubscribed, unlockedPosts, onUnlock, 
 
         {/* Actions */}
         {!isLocked && (
-          <div className="flex items-center gap-1 px-5 pb-5 pt-3 border-t border-zinc-800/60">
-            <button
-              onClick={handleLike}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
-                liked
-                  ? 'text-pink-400 bg-pink-500/10'
-                  : 'text-zinc-500 hover:text-pink-400 hover:bg-pink-500/10'
+          <>
+            <div className="flex items-center gap-1 px-5 py-3 border-t border-zinc-800/60">
+              <button
+                onClick={handleLike}
+                disabled={!userId}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
+                  liked
+                    ? 'text-pink-400 bg-pink-500/10'
+                    : 'text-zinc-500 hover:text-pink-400 hover:bg-pink-500/10 disabled:opacity-40 disabled:cursor-default'
+                )}
+              >
+                <Heart className={cn('w-4 h-4', liked && 'fill-current')} />
+                {likeCount.toLocaleString()}
+              </button>
+
+              {!post.commentsDisabled && (
+                <button
+                  onClick={toggleComments}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
+                    showComments ? 'text-blue-400 bg-blue-500/10' : 'text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10'
+                  )}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  {commentCount.toLocaleString()}
+                  {showComments ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
               )}
-            >
-              <Heart className={cn('w-4 h-4', liked && 'fill-current')} />
-              {likeCount.toLocaleString()}
-            </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200">
-              <MessageSquare className="w-4 h-4" />
-              {post.comments.toLocaleString()}
-            </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all duration-200">
-              <Share2 className="w-4 h-4" />
-              Share
-            </button>
-          </div>
+
+              <div className="relative ml-auto">
+                <button
+                  onClick={handleShare}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all duration-200"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Share
+                </button>
+                {shareToast && (
+                  <div className="absolute bottom-full right-0 mb-1.5 px-2.5 py-1 bg-zinc-700 text-white text-[11px] rounded-lg whitespace-nowrap pointer-events-none">
+                    Link copied!
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Comments section */}
+            {!post.commentsDisabled && showComments && (
+              <div className="border-t border-zinc-800/60 px-5 pb-5 pt-4">
+                {loadingComments ? (
+                  <p className="text-xs text-zinc-600 text-center py-2">Loading…</p>
+                ) : (
+                  <>
+                    {(comments ?? []).length === 0 && (
+                      <p className="text-xs text-zinc-600 text-center py-2 mb-3">No comments yet</p>
+                    )}
+                    <div className="flex flex-col gap-3 mb-3 max-h-48 overflow-y-auto">
+                      {(comments ?? []).map(c => {
+                        const uname = c.users?.display_name ?? c.users?.username ?? 'User'
+                        const initials = uname.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || 'U'
+                        return (
+                          <div key={c.id} className="flex items-start gap-2.5">
+                            <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shrink-0 mt-0.5">
+                              {c.users?.avatar_url
+                                ? <img src={c.users.avatar_url} alt="" className="w-full h-full object-cover rounded-full" /> // eslint-disable-line @next/next/no-img-element
+                                : initials
+                              }
+                            </div>
+                            <div>
+                              <span className="text-[11px] font-semibold text-zinc-300">{uname}</span>
+                              <p className="text-xs text-zinc-400 leading-relaxed">{c.body}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {userId && (
+                      <form onSubmit={handleComment} className="flex items-center gap-2">
+                        <input
+                          value={commentText}
+                          onChange={e => setCommentText(e.target.value)}
+                          placeholder="Add a comment…"
+                          maxLength={500}
+                          disabled={postingComment}
+                          className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500/50 disabled:opacity-50"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!commentText.trim() || postingComment}
+                          className="w-8 h-8 shrink-0 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center disabled:opacity-40 hover:scale-105 active:scale-95 transition-transform"
+                        >
+                          <Send className="w-3.5 h-3.5 text-white" />
+                        </button>
+                      </form>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </>
   )
 }
 
-// ── Media grid subcomponent ──────────────────────────────────────────────────
+// ── Media grid ────────────────────────────────────────────────────────────────
 
-interface MediaGridProps {
-  items: LightboxItem[]
-  gradient?: string
-  hasMedia: boolean
-  onOpen: (index: number) => void
-}
+interface MediaGridProps { items: LightboxItem[]; gradient?: string; hasMedia: boolean; onOpen: (i: number) => void }
 
 function MediaGrid({ items, gradient, hasMedia, onOpen }: MediaGridProps) {
   if (items.length === 0) {
@@ -211,20 +346,14 @@ function MediaGrid({ items, gradient, hasMedia, onOpen }: MediaGridProps) {
       </div>
     ) : null
   }
-
   if (items.length === 1) {
     return (
-      <button
-        onClick={() => onOpen(0)}
-        className="mt-3 block w-full rounded-xl overflow-hidden focus:outline-none cursor-zoom-in group"
-      >
+      <button onClick={() => onOpen(0)} className="mt-3 block w-full rounded-xl overflow-hidden focus:outline-none cursor-zoom-in group">
         <MediaThumb item={items[0]} className="w-full h-64 sm:h-72 object-cover group-hover:scale-[1.01] transition-transform duration-200" />
       </button>
     )
   }
-
-  // 2–4 items: grid
-  const shown   = items.slice(0, 4)
+  const shown = items.slice(0, 4)
   const overflow = items.length - 4
 
   if (items.length === 2) {
@@ -238,7 +367,6 @@ function MediaGrid({ items, gradient, hasMedia, onOpen }: MediaGridProps) {
       </div>
     )
   }
-
   if (items.length === 3) {
     return (
       <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl overflow-hidden">
@@ -253,8 +381,6 @@ function MediaGrid({ items, gradient, hasMedia, onOpen }: MediaGridProps) {
       </div>
     )
   }
-
-  // 4+
   return (
     <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl overflow-hidden">
       {shown.map((item, i) => (
@@ -270,8 +396,6 @@ function MediaGrid({ items, gradient, hasMedia, onOpen }: MediaGridProps) {
     </div>
   )
 }
-
-// ── Single thumbnail (image or video preview) ─────────────────────────────────
 
 function MediaThumb({ item, className }: { item: LightboxItem; className?: string }) {
   if (item.type === 'video') {

@@ -17,20 +17,22 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
 
-  const { title, body: postBody, post_type, ppv_price_cents, is_published, new_media } = body
+  const { title, body: postBody, post_type, ppv_price_cents, is_published, new_media, comments_disabled, display_like_count } = body
   const service = getSupabaseServiceClient()
 
   const { data: post, error: postErr } = await service
     .from('posts')
     .insert({
-      creator_id:      modelId!,
-      title:           title?.trim() || null,
-      body:            postBody?.trim() || null,
-      post_type:       post_type ?? 'free',
-      ppv_price_cents: post_type === 'ppv' ? (ppv_price_cents ?? null) : null,
-      is_premium:      post_type !== 'free',
-      is_published:    !!is_published,
-      published_at:    is_published ? new Date().toISOString() : null,
+      creator_id:          modelId!,
+      title:               title?.trim() || null,
+      body:                postBody?.trim() || null,
+      post_type:           post_type ?? 'free',
+      ppv_price_cents:     post_type === 'ppv' ? (ppv_price_cents ?? null) : null,
+      is_premium:          post_type !== 'free',
+      is_published:        !!is_published,
+      published_at:        is_published ? new Date().toISOString() : null,
+      comments_disabled:   typeof comments_disabled === 'boolean' ? comments_disabled : false,
+      display_like_count:  display_like_count ?? null,
     })
     .select()
     .single()

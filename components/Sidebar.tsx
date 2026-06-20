@@ -13,7 +13,7 @@ const navItems = [
   { href: '/account',       label: 'Account',   icon: UserCircle    },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ isCreator = false }: { isCreator?: boolean }) {
   const pathname = usePathname()
   const router   = useRouter()
   const supabase = getSupabaseBrowserClient()
@@ -57,12 +57,15 @@ export default function Sidebar() {
             </Link>
           ))}
 
-          <div className="my-3 border-t border-zinc-800" />
-
-          <Link href="/admin" className={adminLinkClass}>
-            <Shield className="w-4 h-4" />
-            Admin Panel
-          </Link>
+          {isCreator && (
+            <>
+              <div className="my-3 border-t border-zinc-800" />
+              <Link href="/admin" className={adminLinkClass}>
+                <Shield className="w-4 h-4" />
+                Admin Panel
+              </Link>
+            </>
+          )}
         </nav>
 
         <button
@@ -94,16 +97,18 @@ export default function Sidebar() {
             )
           })}
 
-          <Link
-            href="/admin"
-            className={cn(
-              'flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200',
-              pathname.startsWith('/admin') ? 'text-purple-400' : 'text-zinc-500 active:text-zinc-300'
-            )}
-          >
-            <Shield className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Admin</span>
-          </Link>
+          {isCreator && (
+            <Link
+              href="/admin"
+              className={cn(
+                'flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200',
+                pathname.startsWith('/admin') ? 'text-purple-400' : 'text-zinc-500 active:text-zinc-300'
+              )}
+            >
+              <Shield className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Admin</span>
+            </Link>
+          )}
 
           <button
             onClick={handleLogout}
