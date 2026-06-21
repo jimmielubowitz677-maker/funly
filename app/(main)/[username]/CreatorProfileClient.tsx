@@ -259,23 +259,26 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
             </div>
           )}
           <h2 className="text-lg font-bold mb-4">Subscribe to {creator.name}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
             {PLANS.map(plan => {
               const Icon = plan.icon
               return (
-                <div key={plan.id} className={cn(
-                  'relative flex flex-col rounded-2xl border p-5 transition-all',
-                  plan.highlighted
-                    ? 'border-pink-500/50 bg-gradient-to-b from-pink-500/10 to-zinc-900 shadow-lg shadow-pink-500/10'
-                    : 'border-zinc-800 bg-zinc-900'
-                )}>
-                  {plan.badge && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="bg-gradient-to-r from-pink-500 to-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                <div key={plan.id} className="flex flex-col">
+                  {/* Badge row — real in-flow element so it never overlaps the card */}
+                  <div className="flex justify-center mb-2 h-7 items-center">
+                    {plan.badge && (
+                      <span className="bg-gradient-to-r from-pink-500 to-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md shadow-pink-500/30 whitespace-nowrap">
                         {plan.badge}
                       </span>
-                    </div>
-                  )}
+                    )}
+                  </div>
+
+                  <div className={cn(
+                    'flex flex-col flex-1 rounded-2xl border p-5 transition-all',
+                    plan.highlighted
+                      ? 'border-pink-500/50 bg-gradient-to-b from-pink-500/10 to-zinc-900 shadow-lg shadow-pink-500/10'
+                      : 'border-zinc-800 bg-zinc-900'
+                  )}>
                   <div className="flex items-center gap-2 mb-3">
                     <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center', plan.highlighted ? 'bg-pink-500/20' : 'bg-zinc-800')}>
                       <Icon className={cn('w-4 h-4', plan.highlighted ? 'text-pink-400' : 'text-zinc-400')} />
@@ -308,6 +311,7 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
                       <span className="flex items-center justify-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" />Redirecting…</span>
                     ) : 'Subscribe Now'}
                   </Button>
+                  </div>
                 </div>
               )
             })}
