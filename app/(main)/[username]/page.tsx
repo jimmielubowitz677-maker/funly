@@ -37,13 +37,25 @@ export default async function CreatorPage({
   const service = getSupabaseServiceClient()
 
   // Resolve the creator by username
-  const { data: creator } = await service
+  const { data: creator, error: creatorErr } = await service
     .from('users')
-    .select('id, username, display_name, bio, avatar_url, banner_url, is_verified, is_creator, is_banned, display_subscriber_count')
+    .select('id, username, display_name, bio, avatar_url, banner_url, is_verified, is_creator, is_banned')
     .eq('username', params.username)
     .maybeSingle()
 
+  if (creatorErr) console.error('[username] creator query error:', creatorErr.message)
   if (!creator || !creator.is_creator || creator.is_banned) notFound()
+
+  // display_subscriber_count is optional — column may not exist if migration hasn't run
+  let displaySubscriberCount: number | null = null
+  const { data: subOverride } = await service
+    .from('users')
+    .select('display_subscriber_count')
+    .eq('id', creator.id)
+    .maybeSingle()
+  if (subOverride) {
+    displaySubscriberCount = (subOverride as unknown as { display_subscriber_count: number | null }).display_subscriber_count ?? null
+  }
 
   const [
     { data: rawPosts },
@@ -110,7 +122,7 @@ export default async function CreatorPage({
         bannerUrl: creator.banner_url ?? null,
         subscriberCount: subCount ?? 0,
         postCount: postCount ?? 0,
-        displaySubscriberCount: (creator as unknown as { display_subscriber_count: number | null }).display_subscriber_count ?? null,
+        displaySubscriberCount,
       }}
       posts={posts}
       isSubscribed={isSubscribed}

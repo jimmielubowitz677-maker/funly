@@ -45,5 +45,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Self-heal comment_count regardless of trigger state
+  const { count: actualCount } = await service
+    .from('comments')
+    .select('*', { count: 'exact', head: true })
+    .eq('post_id', params.id)
+  await service.from('posts').update({ comment_count: actualCount ?? 0 }).eq('id', params.id)
+
   return NextResponse.json({ comment }, { status: 201 })
 }

@@ -2,15 +2,17 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertCircle, X } from 'lucide-react'
+import Link from 'next/link'
+import { AlertCircle, X, Compass } from 'lucide-react'
 import PostCard, { type Post } from '@/components/PostCard'
 
 interface FeedClientProps {
-  posts: Post[]
+  posts: (Post & { _section: 'subscribed' | 'discover' })[]
   subscribedCreatorIds: string[]
   unlockedPpvIds: string[]
   userId?: string
   likedPostIds?: string[]
+  hasSubscriptions?: boolean
 }
 
 export default function FeedClient({
@@ -19,34 +21,30 @@ export default function FeedClient({
   unlockedPpvIds,
   userId,
   likedPostIds = [],
+  hasSubscriptions = false,
 }: FeedClientProps) {
-  const likedSet = useMemo(() => new Set(likedPostIds), [likedPostIds])
-  const router = useRouter()
-
-  const [unlockedPosts] = useState<Set<string>>(new Set(unlockedPpvIds))
-  const [unlockingPostId, setUnlockingPostId] = useState<string | null>(null)
-  const [unlockError, setUnlockError] = useState<string | null>(null)
-
+  const likedSet      = useMemo(() => new Set(likedPostIds), [likedPostIds])
   const subscribedSet = useMemo(() => new Set(subscribedCreatorIds), [subscribedCreatorIds])
+  const router        = useRouter()
+
+  const [unlockedPosts]    = useState<Set<string>>(new Set(unlockedPpvIds))
+  const [unlockingPostId, setUnlockingPostId] = useState<string | null>(null)
+  const [unlockError,     setUnlockError]     = useState<string | null>(null)
 
   async function handleUnlock(id: string) {
     setUnlockingPostId(id)
     setUnlockError(null)
-
     try {
-      const res = await fetch('/api/payments/unlock-post', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res  = await fetch('/api/payments/unlock-post', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ postId: id }),
       })
       const data = await res.json() as { invoice_url?: string; error?: string }
-
       if (!res.ok || !data.invoice_url) {
         setUnlockError(data.error ?? 'Failed to create payment. Please try again.')
         setUnlockingPostId(null)
         return
       }
-
       window.location.href = data.invoice_url
     } catch {
       setUnlockError('Network error. Please try again.')
@@ -54,9 +52,27 @@ export default function FeedClient({
     }
   }
 
+  const subscribedPosts = posts.filter(p => p._section === 'subscribed')
+  const discoveryPosts  = posts.filter(p => p._section === 'discover')
+
+  function renderPost(post: Post & { _section: 'subscribed' | 'discover' }) {
+    return (
+      <PostCard
+        key={post.id}
+        post={post}
+        isSubscribed={subscribedSet.has(post.creatorId)}
+        unlockedPosts={unlockedPosts}
+        onUnlock={handleUnlock}
+        onSubscribe={() => router.push(`/${post.creator.username}`)}
+        loadingUnlock={unlockingPostId === post.id}
+        userId={userId}
+        isLiked={likedSet.has(post.id)}
+      />
+    )
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
-      {/* Unlock error toast */}
       {unlockError && (
         <div className="fixed top-4 left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-50 flex items-start gap-3 rounded-xl border border-red-500/30 bg-zinc-900 shadow-2xl shadow-black/60 px-4 py-3">
           <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
@@ -67,29 +83,41 @@ export default function FeedClient({
         </div>
       )}
 
-      <div className="mb-6">
-        <h1 className="text-xl font-bold">Latest Posts</h1>
-      </div>
-
-      {/* Posts */}
       {posts.length === 0 ? (
-        <div className="text-center py-16 text-zinc-600 text-sm">No posts yet — check back soon.</div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {posts.map(post => (
-            <PostCard
-              key={post.id}
-              post={post}
-              isSubscribed={subscribedSet.has(post.creatorId)}
-              unlockedPosts={unlockedPosts}
-              onUnlock={handleUnlock}
-              onSubscribe={() => router.push(`/${post.creator.username}`)}
-              loadingUnlock={unlockingPostId === post.id}
-              userId={userId}
-              isLiked={likedSet.has(post.id)}
-            />
-          ))}
+        <div className="text-center py-16 space-y-4">
+          <p className="text-zinc-600 text-sm">No posts yet.</p>
+          <Link href="/subscriptions" className="inline-flex items-center gap-2 text-sm text-pink-400 hover:text-pink-300 font-medium transition-colors">
+            <Compass className="w-4 h-4" />
+            Discover creators to follow
+          </Link>
         </div>
+      ) : (
+        <>
+          {/* ── Subscribed section ── */}
+          {subscribedPosts.length > 0 && (
+            <div className="mb-8">
+              <h1 className="text-xl font-bold mb-4">Following</h1>
+              <div className="flex flex-col gap-4">
+                {subscribedPosts.map(renderPost)}
+              </div>
+            </div>
+          )}
+
+          {/* ── Discovery section ── */}
+          {discoveryPosts.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Compass className="w-4 h-4 text-zinc-500" />
+                <h2 className={`font-bold ${hasSubscriptions ? 'text-base text-zinc-400' : 'text-xl text-white'}`}>
+                  {hasSubscriptions ? 'Discover More' : 'Latest Posts'}
+                </h2>
+              </div>
+              <div className="flex flex-col gap-4">
+                {discoveryPosts.map(renderPost)}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

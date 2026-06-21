@@ -81,7 +81,9 @@ export default function PostCard({
       const res  = await fetch(`/api/posts/${post.id}/like`, { method: 'POST' })
       const data = await res.json() as { liked: boolean; count: number }
       setLiked(data.liked)
-      setLikeCount(post.displayLikeCount != null ? post.displayLikeCount : data.count)
+      // Only sync with DB count when no display override is set;
+      // when override is active the optimistic +/-1 is the right display
+      if (post.displayLikeCount == null) setLikeCount(data.count)
     } catch {
       setLiked(l => !l)
       setLikeCount(c => liked ? c + 1 : c - 1)
@@ -160,33 +162,39 @@ export default function PostCard({
         {/* Content */}
         <div className="px-5 pb-4">
           {isLocked ? (
-            <div className="relative overflow-hidden rounded-xl" style={{ minHeight: '200px' }}>
-              {/* Blurred preview layer */}
+            /* ── Locked post: full-image blur with overlay (no cropping) ── */
+            <div className="relative rounded-xl overflow-hidden" style={{ minHeight: '220px' }}>
+              {/* Blurred preview — full natural dimensions, no cropping */}
               {post.content && (
-                <p className="text-zinc-400 text-sm leading-relaxed blur-sm select-none pointer-events-none line-clamp-2 mb-2">
+                <p className="text-zinc-400 text-sm leading-relaxed blur-md select-none pointer-events-none line-clamp-3 mb-2">
                   {post.content}
                 </p>
               )}
               {post.hasMedia ? (
                 allMedia[0] ? (
                   allMedia[0].type === 'video' ? (
-                    <div className="w-full h-52 blur-sm pointer-events-none bg-zinc-800 flex items-center justify-center">
-                      <Play className="w-8 h-8 text-zinc-600 fill-zinc-600" />
+                    <div className="w-full h-64 pointer-events-none bg-zinc-800 flex items-center justify-center" style={{ filter: 'blur(16px)' }}>
+                      <Play className="w-10 h-10 text-zinc-600 fill-zinc-600" />
                     </div>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={allMedia[0].url} alt="" className="w-full h-52 object-cover blur-sm pointer-events-none" />
+                    <img
+                      src={allMedia[0].url}
+                      alt=""
+                      className="w-full max-h-[32rem] object-contain pointer-events-none"
+                      style={{ filter: 'blur(18px)', background: '#09090b' }}
+                    />
                   )
                 ) : (
-                  <div className={cn('w-full h-52 blur-sm pointer-events-none bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-700 to-zinc-800')} />
+                  <div className={cn('w-full h-64 pointer-events-none bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-700 to-zinc-800')} style={{ filter: 'blur(16px)' }} />
                 )
               ) : (
                 <div className={cn('w-full h-40 bg-gradient-to-br', post.mediaGradient ?? 'from-zinc-800 to-zinc-900')} />
               )}
 
-              {/* Overlay panel — floats on top of blurred content */}
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <div className="bg-black/60 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-5 flex flex-col items-center gap-3 mx-4 w-full max-w-xs">
+              {/* Overlay — centered panel on top of the blurred image */}
+              <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
+                <div className="bg-black/65 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-5 flex flex-col items-center gap-3 mx-4 w-full max-w-xs shadow-2xl">
                   <div className="w-10 h-10 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center">
                     <Lock className="w-4 h-4 text-pink-400" />
                   </div>
@@ -196,15 +204,18 @@ export default function PostCard({
                         <p className="font-semibold text-white text-sm">Premium Content</p>
                         <p className="text-xs text-zinc-400 mt-0.5">Subscribe to unlock all premium posts</p>
                       </div>
-                      <Button variant="primary" size="sm" onClick={onSubscribe}>
+                      <button
+                        onClick={onSubscribe}
+                        className="w-full py-2.5 px-5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-400 hover:to-rose-500 shadow-lg shadow-pink-500/30 hover:shadow-pink-500/50 active:scale-[0.97] transition-all duration-150"
+                      >
                         Subscribe — from $9.99/mo
-                      </Button>
+                      </button>
                     </>
                   ) : (
                     <>
                       <div className="text-center">
                         <p className="font-semibold text-white text-sm">Pay-Per-View Post</p>
-                        <p className="text-xs text-zinc-400 mt-0.5">One-time unlock for this exclusive post</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">One-time unlock</p>
                       </div>
                       <Button variant="primary" size="sm" loading={loadingUnlock} onClick={() => onUnlock(post.id)}>
                         {loadingUnlock ? 'Redirecting…' : `Unlock for $${post.ppvPrice?.toFixed(2)}`}
@@ -225,6 +236,22 @@ export default function PostCard({
             </>
           )}
         </div>
+
+        {/* ── Subscribe CTA on free/unlocked posts for non-subscribers ── */}
+        {!isLocked && !isSubscribed && post.type === 'free' && (
+          <div className="mx-5 mb-4 flex items-center justify-between gap-3 rounded-xl border border-pink-500/20 bg-gradient-to-r from-pink-500/8 to-rose-500/8 px-4 py-3">
+            <p className="text-xs text-zinc-300 leading-snug">
+              <span className="font-semibold text-white">Unlock all exclusive content</span>
+              <span className="text-zinc-500"> · from $9.99/mo</span>
+            </p>
+            <button
+              onClick={onSubscribe}
+              className="shrink-0 py-2 px-4 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-400 hover:to-rose-500 shadow-md shadow-pink-500/25 hover:shadow-pink-500/40 active:scale-[0.97] transition-all duration-150 whitespace-nowrap"
+            >
+              Subscribe
+            </button>
+          </div>
+        )}
 
         {/* Actions */}
         {!isLocked && (

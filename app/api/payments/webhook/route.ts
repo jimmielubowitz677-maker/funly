@@ -51,10 +51,16 @@ export async function POST(request: NextRequest) {
   }
 
   if (payment_status === 'finished' || payment_status === 'confirmed') {
+    const platformFeeCents = Math.round(payment.amount_cents * 0.15)
+
     // Replace the temporary order UUID with the real NOWPayments payment ID
     await service
       .from('payments')
-      .update({ status: 'completed', provider_payment_id: String(payment_id) })
+      .update({
+        status:              'completed',
+        provider_payment_id: String(payment_id),
+        platform_fee_cents:  platformFeeCents,
+      })
       .eq('id', payment.id)
 
     // PPV post unlock — payment is complete, no subscription to create

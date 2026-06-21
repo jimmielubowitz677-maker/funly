@@ -46,9 +46,10 @@ export type Database = {
           payout_account_id:        string | null
           is_verified:              boolean
           is_banned:                boolean
-          display_subscriber_count: number | null
-          created_at:               string
-          updated_at:               string
+          display_subscriber_count:    number | null
+          creator_terms_accepted_at:   string | null
+          created_at:                  string
+          updated_at:                  string
         }
         Insert: {
           id:                         string
@@ -64,7 +65,8 @@ export type Database = {
           payout_account_id?:         string | null
           is_verified?:               boolean
           is_banned?:                 boolean
-          display_subscriber_count?:  number | null
+          display_subscriber_count?:   number | null
+          creator_terms_accepted_at?:  string | null
         }
         Update: Partial<Database['public']['Tables']['users']['Insert']>
         Relationships: never[]

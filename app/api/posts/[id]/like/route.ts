@@ -9,59 +9,41 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const postId  = params.id
   const service = getSupabaseServiceClient()
 
-  console.log('[like] POST — userId:', user.id, 'postId:', postId)
-
-  // Check if already liked
-  const { data: existing, error: existErr } = await service
+  // Check current like state
+  const { data: existing } = await service
     .from('likes')
     .select('user_id')
     .eq('user_id', user.id)
     .eq('post_id', postId)
     .maybeSingle()
 
-  console.log('[like] existing check — found:', !!existing, 'error:', existErr?.message ?? null)
-
   if (existing) {
     const { error: delErr } = await service
-      .from('likes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('post_id', postId)
-    console.log('[like] DELETE — error:', delErr?.message ?? null)
-
-    const { count: likesInTable } = await service
-      .from('likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('post_id', postId)
-
-    const { data: post } = await service
-      .from('posts')
-      .select('like_count, display_like_count')
-      .eq('id', postId)
-      .single()
-
-    console.log('[like] after DELETE — likes rows in table:', likesInTable, 'posts.like_count:', post?.like_count, 'posts.display_like_count:', post?.display_like_count)
-
-    return NextResponse.json({ liked: false, count: post?.like_count ?? 0 })
+      .from('likes').delete().eq('user_id', user.id).eq('post_id', postId)
+    if (delErr) {
+      console.error('[like] DELETE failed:', delErr.code, delErr.message)
+      return NextResponse.json({ error: 'Failed to unlike' }, { status: 500 })
+    }
   } else {
     const { error: insErr } = await service
-      .from('likes')
-      .insert({ user_id: user.id, post_id: postId })
-    console.log('[like] INSERT — error:', insErr?.code ?? null, insErr?.message ?? null)
-
-    const { count: likesInTable } = await service
-      .from('likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('post_id', postId)
-
-    const { data: post } = await service
-      .from('posts')
-      .select('like_count, display_like_count')
-      .eq('id', postId)
-      .single()
-
-    console.log('[like] after INSERT — likes rows in table:', likesInTable, 'posts.like_count:', post?.like_count, 'posts.display_like_count:', post?.display_like_count)
-
-    return NextResponse.json({ liked: true, count: post?.like_count ?? 0 })
+      .from('likes').insert({ user_id: user.id, post_id: postId })
+    if (insErr) {
+      console.error('[like] INSERT failed:', insErr.code, insErr.message)
+      return NextResponse.json({ error: 'Failed to like' }, { status: 500 })
+    }
   }
+
+  // Count actual rows — makes trigger optional; also self-heals any drift
+  const { count: actualCount } = await service
+    .from('likes')
+    .select('*', { count: 'exact', head: true })
+    .eq('post_id', postId)
+
+  // Write the true count back to posts (idempotent whether trigger fired or not)
+  await service
+    .from('posts')
+    .update({ like_count: actualCount ?? 0 })
+    .eq('id', postId)
+
+  return NextResponse.json({ liked: !existing, count: actualCount ?? 0 })
 }

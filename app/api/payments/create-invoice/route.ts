@@ -116,10 +116,12 @@ export async function POST(request: NextRequest) {
 
   // Insert a pending payment; orderId lives in provider_payment_id so the
   // webhook can locate this row when NOWPayments echoes it back as order_id.
+  const amountCents = Math.round(plan.price * 100)
   const { error: insertErr } = await service.from('payments').insert({
     payer_id:            subscriberId,
     payee_id:            creatorId,
-    amount_cents:        Math.round(plan.price * 100),
+    amount_cents:        amountCents,
+    platform_fee_cents:  Math.round(amountCents * 0.15),
     currency:            'USD',
     status:              'pending',
     provider:            'crypto',
@@ -135,7 +137,7 @@ export async function POST(request: NextRequest) {
   let invoice
   try {
     invoice = await createInvoice({
-      price_amount:      plan.price,
+      price_amount:      amountCents / 100,
       price_currency:    'usd',
       order_id:          orderId,
       order_description: plan.label,
