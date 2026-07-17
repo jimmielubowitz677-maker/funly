@@ -42,7 +42,7 @@ export default function Sidebar({ isCreator = false }: { isCreator?: boolean }) 
   return (
     <>
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex w-64 flex-shrink-0 h-screen sticky top-0 flex-col border-r border-zinc-800/60 bg-zinc-950 p-4">
+      <aside className="hidden md:fixed md:top-0 md:bottom-0 md:left-0 md:z-40 md:flex h-screen w-64 flex-shrink-0 flex-col overflow-hidden border-r border-zinc-800/60 bg-zinc-950 p-4">
         <div className="flex items-center gap-2.5 px-3 py-2 mb-6">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
             <LollipopIcon className="w-5 h-5 text-white" />
@@ -50,7 +50,7 @@ export default function Sidebar({ isCreator = false }: { isCreator?: boolean }) 
           <span className="font-bold text-lg tracking-tight">Funly</span>
         </div>
 
-        <nav className="flex flex-col gap-1 flex-1">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
           {navItems.map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href} className={linkClass(href)}>
               <Icon className="w-4 h-4" />

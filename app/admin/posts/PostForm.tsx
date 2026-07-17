@@ -23,6 +23,8 @@ interface PostData {
   post_type: 'free' | 'premium' | 'ppv'
   ppv_price_cents: number | null
   is_published: boolean
+  published_at?: string | null
+  created_at?: string
   comments_disabled?: boolean
   display_like_count?: number | null
 }
@@ -48,6 +50,18 @@ const TYPE_DESC   = {
   ppv:     'Individual unlock purchase, separate from subscription',
 }
 
+function toDatetimeLocal(value?: string | null) {
+  if (!value) return ''
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const offset = date.getTimezoneOffset()
+  const localDate = new Date(date.getTime() - offset * 60_000)
+
+  return localDate.toISOString().slice(0, 16)
+}
+
 export default function PostForm({ mode = 'create', post, existingMedia = [] }: PostFormProps) {
   const router = useRouter()
 
@@ -57,6 +71,8 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
   const [ppvPrice,           setPpvPrice]           = useState(post?.ppv_price_cents ? String(post.ppv_price_cents / 100) : '')
   const [commentsDisabled,   setCommentsDisabled]   = useState(post?.comments_disabled ?? false)
   const [displayLikeCount,   setDisplayLikeCount]   = useState(post?.display_like_count != null ? String(post.display_like_count) : '')
+  const initialPublishedAt = post?.published_at ?? post?.created_at ?? new Date().toISOString()
+  const [publishedAt,        setPublishedAt]        = useState(toDatetimeLocal(initialPublishedAt))
   const isPublished = post?.is_published ?? false
 
   const [queued,        setQueued]        = useState<QueuedFile[]>([])
@@ -115,7 +131,6 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
       setError('Enter a price for Pay-Per-View posts.')
       return
     }
-
     setSubmitting(true)
     setError(null)
 
@@ -164,6 +179,7 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
         delete_media_ids:    deletedIds,
         comments_disabled:   commentsDisabled,
         display_like_count:  displayLikeCount !== '' ? parseInt(displayLikeCount, 10) : null,
+        published_at:        publishedAt ? new Date(publishedAt).toISOString() : null,
       }),
     })
 
@@ -420,20 +436,36 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
             </div>
           </label>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="display-like-count" className="text-sm font-medium text-zinc-300">
-              Custom like count display
-            </label>
-            <input
-              id="display-like-count"
-              type="number"
-              min="0"
-              placeholder={`Leave blank to show real count`}
-              value={displayLikeCount}
-              onChange={e => setDisplayLikeCount(e.target.value)}
-              className="w-48 rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-colors"
-            />
-            <p className="text-xs text-zinc-500">Overrides the displayed like count without changing real likes</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="display-like-count" className="text-sm font-medium text-zinc-300">
+                Custom like count display
+              </label>
+              <input
+                id="display-like-count"
+                type="number"
+                min="0"
+                placeholder={`Leave blank to show real count`}
+                value={displayLikeCount}
+                onChange={e => setDisplayLikeCount(e.target.value)}
+                className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-colors"
+              />
+              <p className="text-xs text-zinc-500">Overrides the displayed like count without changing real likes</p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="published_at" className="text-sm font-medium text-zinc-300">
+                Дата и время публикации
+              </label>
+              <input
+                id="published_at"
+                name="published_at"
+                type="datetime-local"
+                value={publishedAt}
+                onChange={e => setPublishedAt(e.target.value)}
+                className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-colors"
+              />
+            </div>
           </div>
         </div>
 

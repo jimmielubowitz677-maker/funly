@@ -20,10 +20,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <div className="flex min-h-screen bg-zinc-950">
+    <>
       <Sidebar isCreator={isCreator} />
       {/* pb-16 reserves space above the mobile bottom nav (≈64px) */}
-      <main className="flex-1 min-w-0 pb-16 md:pb-0">{children}</main>
-    </div>
+      <main className="min-h-screen min-w-0 bg-zinc-950 pb-16 md:ml-64 md:pb-0">{children}</main>
+    </>
   )
 }
