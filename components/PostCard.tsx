@@ -376,49 +376,17 @@ function MediaGrid({ items, gradient, hasMedia, onOpen }: MediaGridProps) {
   }
   if (items.length === 1) {
     return (
-      <button onClick={() => onOpen(0)} className="mt-3 block w-full rounded-xl overflow-hidden focus:outline-none cursor-zoom-in group">
-        <MediaThumb item={items[0]} className="w-full h-64 sm:h-72 object-cover group-hover:scale-[1.01] transition-transform duration-200" />
+      <button onClick={() => onOpen(0)} className="mt-3 block w-full overflow-hidden rounded-xl bg-black focus:outline-none cursor-zoom-in group">
+        <MediaThumb item={items[0]} className="w-full h-auto max-h-none group-hover:scale-[1.01] transition-transform duration-200" />
       </button>
     )
   }
-  const shown = items.slice(0, 4)
-  const overflow = items.length - 4
 
-  if (items.length === 2) {
-    return (
-      <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl overflow-hidden">
-        {shown.map((item, i) => (
-          <button key={i} onClick={() => onOpen(i)} className="block aspect-square focus:outline-none cursor-zoom-in overflow-hidden">
-            <MediaThumb item={item} className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-200" />
-          </button>
-        ))}
-      </div>
-    )
-  }
-  if (items.length === 3) {
-    return (
-      <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl overflow-hidden">
-        <button onClick={() => onOpen(0)} className="block row-span-2 aspect-[3/4] focus:outline-none cursor-zoom-in overflow-hidden">
-          <MediaThumb item={items[0]} className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-200" />
-        </button>
-        {shown.slice(1).map((item, i) => (
-          <button key={i + 1} onClick={() => onOpen(i + 1)} className="block aspect-square focus:outline-none cursor-zoom-in overflow-hidden">
-            <MediaThumb item={item} className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-200" />
-          </button>
-        ))}
-      </div>
-    )
-  }
   return (
-    <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl overflow-hidden">
-      {shown.map((item, i) => (
-        <button key={i} onClick={() => onOpen(i)} className="relative block aspect-square focus:outline-none cursor-zoom-in overflow-hidden">
-          <MediaThumb item={item} className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-200" />
-          {i === 3 && overflow > 0 && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <span className="text-white font-bold text-2xl">+{overflow}</span>
-            </div>
-          )}
+    <div className="mt-3 flex flex-col gap-2">
+      {items.map((item, i) => (
+        <button key={i} onClick={() => onOpen(i)} className="block w-full overflow-hidden rounded-xl bg-black focus:outline-none cursor-zoom-in group">
+          <MediaThumb item={item} className="w-full h-auto group-hover:scale-[1.01] transition-transform duration-200" />
         </button>
       ))}
     </div>
@@ -428,8 +396,11 @@ function MediaGrid({ items, gradient, hasMedia, onOpen }: MediaGridProps) {
 function MediaThumb({ item, className }: { item: LightboxItem; className?: string }) {
   if (item.type === 'video') {
     return (
-      <div className={cn('relative bg-zinc-800 flex items-center justify-center', className)}>
-        <Play className="w-10 h-10 text-white/70 fill-white/70 drop-shadow-lg" />
+      <div className="relative bg-black">
+        <video src={item.url} className={cn('block', className)} preload="metadata" playsInline />
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <Play className="w-10 h-10 text-white/80 fill-white/80 drop-shadow-lg" />
+        </div>
       </div>
     )
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import type { Database } from '@/lib/supabase/database.types'
 
 interface NewMedia {
   url: string
@@ -10,11 +11,17 @@ interface NewMedia {
   sort_order: number
 }
 
+type PostUpdate = Database['public']['Tables']['posts']['Update']
+
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const { modelId, error } = await requireAdmin()
+  if (error) return error
+
   const service = getSupabaseServiceClient()
 
   const { data: post } = await service.from('posts').select('*').eq('id', params.id).single()
   if (!post) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (post.creator_id !== modelId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { data: media } = await service.from('media').select('*').eq('post_id', params.id).order('sort_order')
 
@@ -28,26 +35,51 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
 
-  const { title, body: postBody, post_type, ppv_price_cents, is_published, new_media, delete_media_ids, comments_disabled, display_like_count } = body
+  const { title, body: postBody, post_type, ppv_price_cents, is_published, published_at, new_media, delete_media_ids, comments_disabled, display_like_count } = body
   const service = getSupabaseServiceClient()
 
-  const { data: postRow } = await service.from('posts').select('creator_id').eq('id', params.id).maybeSingle()
+  const { data: postRow } = await service.from('posts').select('creator_id,published_at').eq('id', params.id).maybeSingle()
   if (!postRow) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (postRow.creator_id !== modelId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  const update: PostUpdate = {}
+  if (title !== undefined) update.title = title?.trim() || null
+  if (postBody !== undefined) update.body = postBody?.trim() || null
+  if (post_type !== undefined) {
+    update.post_type = post_type ?? 'free'
+    update.is_premium = post_type !== 'free'
+    update.ppv_price_cents = post_type === 'ppv' ? (ppv_price_cents ?? null) : null
+  } else if (ppv_price_cents !== undefined) {
+    update.ppv_price_cents = ppv_price_cents ?? null
+  }
+  if (typeof comments_disabled === 'boolean') update.comments_disabled = comments_disabled
+  if (display_like_count !== undefined) update.display_like_count = display_like_count ?? null
+
+  if (is_published !== undefined) {
+    update.is_published = !!is_published
+    if (!is_published) update.published_at = null
+  }
+
+  if (published_at !== undefined) {
+    if (published_at === null) {
+      update.published_at = null
+    } else {
+      if (typeof published_at !== 'string') {
+        return NextResponse.json({ error: 'Invalid publication date' }, { status: 400 })
+      }
+      const parsed = new Date(published_at)
+      if (Number.isNaN(parsed.getTime())) {
+        return NextResponse.json({ error: 'Invalid publication date' }, { status: 400 })
+      }
+      update.published_at = parsed.toISOString()
+    }
+  } else if (is_published === true) {
+    update.published_at = postRow.published_at ?? new Date().toISOString()
+  }
+
   const { error: updateErr } = await service
     .from('posts')
-    .update({
-      title:               title?.trim() || null,
-      body:                postBody?.trim() || null,
-      post_type:           post_type ?? 'free',
-      ppv_price_cents:     post_type === 'ppv' ? (ppv_price_cents ?? null) : null,
-      is_premium:          post_type !== 'free',
-      is_published:        !!is_published,
-      published_at:        is_published ? new Date().toISOString() : null,
-      comments_disabled:   typeof comments_disabled === 'boolean' ? comments_disabled : undefined,
-      display_like_count:  display_like_count !== undefined ? (display_like_count ?? null) : undefined,
-    })
+    .update(update)
     .eq('id', params.id)
 
   if (updateErr) {
