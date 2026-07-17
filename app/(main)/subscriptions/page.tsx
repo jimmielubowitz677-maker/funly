@@ -7,7 +7,7 @@ export default async function DiscoverPage() {
   const service = getSupabaseServiceClient()
   const { data: creators } = await service
     .from('users')
-    .select('id, username, display_name, bio, avatar_url, is_verified')
+    .select('id, username, display_name, bio, avatar_url, is_verified, display_subscriber_count')
     .eq('is_creator', true)
     .eq('is_banned', false)
     .order('created_at', { ascending: true })
@@ -36,9 +36,10 @@ export default async function DiscoverPage() {
         <div className="text-center py-20 text-zinc-600">No creators yet.</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(creators ?? []).map((c: { id: string; username: string; display_name: string | null; bio: string | null; avatar_url: string | null; is_verified: boolean }) => {
+          {(creators ?? []).map((c: { id: string; username: string; display_name: string | null; bio: string | null; avatar_url: string | null; is_verified: boolean; display_subscriber_count: number | null }) => {
             const name = c.display_name ?? c.username
             const initials = name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || 'CR'
+            const displayedSubscribers = c.display_subscriber_count ?? subCounts[c.id] ?? 0
             return (
               <Link key={c.id} href={`/${c.username}`} className="group bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-600 transition-all duration-200 hover:shadow-lg hover:shadow-black/40">
                 <div className="flex items-center gap-4 mb-4">
@@ -59,7 +60,7 @@ export default async function DiscoverPage() {
                 </div>
                 {c.bio && <p className="text-sm text-zinc-400 line-clamp-2 mb-4">{c.bio}</p>}
                 <div className="flex items-center gap-4 text-xs text-zinc-500">
-                  <span><strong className="text-white">{subCounts[c.id] ?? 0}</strong> subscribers</span>
+                  <span><strong className="text-white">{displayedSubscribers}</strong> subscribers</span>
                   <span><strong className="text-white">{postCounts[c.id] ?? 0}</strong> posts</span>
                 </div>
                 <div className="mt-4 text-xs font-semibold text-pink-400 group-hover:text-pink-300 transition-colors">
