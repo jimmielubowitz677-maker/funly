@@ -77,10 +77,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     update.published_at = postRow.published_at ?? new Date().toISOString()
   }
 
-  const { error: updateErr } = await service
+  const { data: updatedPost, error: updateErr } = await service
     .from('posts')
     .update(update)
     .eq('id', params.id)
+    .select()
+    .single()
 
   if (updateErr) {
     console.error('[admin/posts PATCH]', updateErr)
@@ -124,7 +126,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     )
   }
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ post: updatedPost })
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {

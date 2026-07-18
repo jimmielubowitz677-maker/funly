@@ -14,15 +14,6 @@ const GRADIENTS = [
   'from-emerald-400/30 to-teal-500/30',
 ]
 
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
-}
-
 export default async function CreatorPage({
   params,
   searchParams,
@@ -103,7 +94,7 @@ export default async function CreatorPage({
       ppvPrice: p.ppv_price_cents ? p.ppv_price_cents / 100 : undefined,
       likes: p.like_count,
       comments: p.comment_count,
-      timestamp: relativeTime(p.published_at ?? p.created_at),
+      publishedAt: p.published_at,
       commentsDisabled: (p as unknown as { comments_disabled: boolean }).comments_disabled ?? false,
       displayLikeCount: (p as unknown as { display_like_count: number | null }).display_like_count ?? null,
     }

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Eye, EyeOff, Pencil, Trash2, Image as ImageIcon, Video, Loader2, Heart, DollarSign } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
+import { formatPublicationDate } from '@/lib/publication-date'
 
 interface PostRow {
   id: string
@@ -13,7 +14,7 @@ interface PostRow {
   post_type: 'free' | 'premium' | 'ppv'
   ppv_price_cents: number | null
   is_published: boolean
-  created_at: string
+  published_at: string | null
   media_count: number
   has_video: boolean
   like_count?: number
@@ -82,7 +83,7 @@ export default function PostsTable({ posts }: PostsTableProps) {
           >
             <td className="px-4 md:px-5 py-4">
               <span className="text-sm font-medium text-zinc-100 line-clamp-1">{post.title ?? '(untitled)'}</span>
-              <span className="text-xs text-zinc-600 mt-0.5 block">{new Date(post.created_at).toLocaleDateString()}</span>
+              <span className="text-xs text-zinc-600 mt-0.5 block">{formatPublicationDate(post.published_at)}</span>
             </td>
             <td className="px-3 py-4 hidden sm:table-cell">
               <Badge variant={post.post_type} />

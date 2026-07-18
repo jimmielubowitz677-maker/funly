@@ -17,8 +17,20 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
 
-  const { title, body: postBody, post_type, ppv_price_cents, is_published, new_media, comments_disabled, display_like_count } = body
+  const { title, body: postBody, post_type, ppv_price_cents, is_published, published_at, new_media, comments_disabled, display_like_count } = body
   const service = getSupabaseServiceClient()
+
+  let normalizedPublishedAt: string | null = null
+  if (published_at != null) {
+    if (typeof published_at !== 'string') {
+      return NextResponse.json({ error: 'Invalid publication date' }, { status: 400 })
+    }
+    const parsed = new Date(published_at)
+    if (Number.isNaN(parsed.getTime())) {
+      return NextResponse.json({ error: 'Invalid publication date' }, { status: 400 })
+    }
+    normalizedPublishedAt = parsed.toISOString()
+  }
 
   const { data: post, error: postErr } = await service
     .from('posts')
@@ -30,7 +42,7 @@ export async function POST(request: NextRequest) {
       ppv_price_cents:     post_type === 'ppv' ? (ppv_price_cents ?? null) : null,
       is_premium:          post_type !== 'free',
       is_published:        !!is_published,
-      published_at:        is_published ? new Date().toISOString() : null,
+      published_at:        is_published ? (normalizedPublishedAt ?? new Date().toISOString()) : null,
       comments_disabled:   typeof comments_disabled === 'boolean' ? comments_disabled : false,
       display_like_count:  display_like_count ?? null,
     })

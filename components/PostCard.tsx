@@ -8,6 +8,7 @@ import Badge from './ui/Badge'
 import Button from './ui/Button'
 import MediaLightbox, { type LightboxItem } from './ui/MediaLightbox'
 import { cn } from '@/lib/utils'
+import { formatPublicationDate } from '@/lib/publication-date'
 
 export type PostType = 'free' | 'premium' | 'ppv'
 
@@ -24,7 +25,7 @@ export interface Post {
   ppvPrice?: number
   likes: number
   comments: number
-  timestamp: string
+  publishedAt: string | null
   commentsDisabled?: boolean
   displayLikeCount?: number | null
 }
@@ -153,7 +154,7 @@ export default function PostCard({
                 <Badge variant={post.type} />
               </div>
               <span className="text-xs text-zinc-500">
-                @{post.creator.username} · {post.timestamp}
+                @{post.creator.username} · {formatPublicationDate(post.publishedAt)}
               </span>
             </div>
           </Link>

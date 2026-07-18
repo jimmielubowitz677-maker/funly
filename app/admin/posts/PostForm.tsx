@@ -24,7 +24,6 @@ interface PostData {
   ppv_price_cents: number | null
   is_published: boolean
   published_at?: string | null
-  created_at?: string
   comments_disabled?: boolean
   display_like_count?: number | null
 }
@@ -71,7 +70,7 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
   const [ppvPrice,           setPpvPrice]           = useState(post?.ppv_price_cents ? String(post.ppv_price_cents / 100) : '')
   const [commentsDisabled,   setCommentsDisabled]   = useState(post?.comments_disabled ?? false)
   const [displayLikeCount,   setDisplayLikeCount]   = useState(post?.display_like_count != null ? String(post.display_like_count) : '')
-  const initialPublishedAt = post?.published_at ?? post?.created_at ?? new Date().toISOString()
+  const initialPublishedAt = mode === 'create' ? new Date().toISOString() : post?.published_at
   const [publishedAt,        setPublishedAt]        = useState(toDatetimeLocal(initialPublishedAt))
   const isPublished = post?.is_published ?? false
 
@@ -166,29 +165,43 @@ export default function PostForm({ mode = 'create', post, existingMedia = [] }: 
     const endpoint = mode === 'create' ? '/api/admin/posts' : `/api/admin/posts/${post!.id}`
     const method   = mode === 'create' ? 'POST' : 'PATCH'
 
-    const res = await fetch(endpoint, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title:               title.trim() || null,
-        body:                body.trim() || null,
-        post_type:           postType,
-        ppv_price_cents:     postType === 'ppv' ? Math.round(parseFloat(ppvPrice) * 100) : null,
-        is_published:        publish,
-        new_media:           uploadedMedia,
-        delete_media_ids:    deletedIds,
-        comments_disabled:   commentsDisabled,
-        display_like_count:  displayLikeCount !== '' ? parseInt(displayLikeCount, 10) : null,
-        published_at:        publishedAt ? new Date(publishedAt).toISOString() : null,
-      }),
-    })
-
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}))
-      setError((d as { error?: string }).error ?? 'Failed to save post. Try again.')
+    let res: Response
+    try {
+      res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title:               title.trim() || null,
+          body:                body.trim() || null,
+          post_type:           postType,
+          ppv_price_cents:     postType === 'ppv' ? Math.round(parseFloat(ppvPrice) * 100) : null,
+          is_published:        publish,
+          new_media:           uploadedMedia,
+          delete_media_ids:    deletedIds,
+          comments_disabled:   commentsDisabled,
+          display_like_count:  displayLikeCount !== '' ? parseInt(displayLikeCount, 10) : null,
+          published_at:        publishedAt ? new Date(publishedAt).toISOString() : null,
+        }),
+      })
+    } catch {
+      setError('Network error — check your connection and try again.')
       setSubmitting(false)
       return
     }
+
+    const data = await res.json().catch(() => ({})) as {
+      post?: PostData
+      error?: string
+    }
+
+    if (!res.ok) {
+      setError(data.error ?? 'Failed to save post. Try again.')
+      setSubmitting(false)
+      return
+    }
+
+    // Use the canonical value returned by Postgres, not the submitted draft.
+    setPublishedAt(toDatetimeLocal(data.post?.published_at ?? null))
 
     router.push('/admin/posts')
     router.refresh()

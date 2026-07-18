@@ -22,9 +22,9 @@ export default async function PostsPage() {
   // column never breaks the list.
   const { data: posts } = await service
     .from('posts')
-    .select('id,title,post_type,ppv_price_cents,is_published,created_at')
+    .select('id,title,post_type,ppv_price_cents,is_published,published_at')
     .eq('creator_id', creatorId)
-    .order('created_at', { ascending: false })
+    .order('published_at', { ascending: false, nullsFirst: false })
 
   const postIds = (posts ?? []).map(p => p.id)
 

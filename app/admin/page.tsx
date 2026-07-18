@@ -4,6 +4,7 @@ import { Users, DollarSign, FileText, MessageSquare, Plus } from 'lucide-react'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getSelectedModel } from '@/lib/admin'
 import Badge from '@/components/ui/Badge'
+import PublicationDate from '@/components/ui/PublicationDate'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +29,7 @@ export default async function AdminDashboard() {
     service.from('subscriptions').select('*', { count: 'exact', head: true }).eq('creator_id', creatorId).eq('status', 'active'),
     service.from('payments').select('amount_cents').eq('payee_id', creatorId).eq('status', 'completed'),
     service.from('messages').select('*', { count: 'exact', head: true }).or(`sender_id.eq.${creatorId},recipient_id.eq.${creatorId}`).gte('created_at', new Date(Date.now() - 86400000).toISOString()),
-    service.from('posts').select('id,title,post_type,is_published,created_at').eq('creator_id', creatorId).order('created_at', { ascending: false }).limit(5),
+    service.from('posts').select('id,title,post_type,is_published,published_at').eq('creator_id', creatorId).order('published_at', { ascending: false, nullsFirst: false }).limit(5),
   ])
 
   const revenue = (revenueRows ?? []).reduce((s, r) => s + r.amount_cents, 0)
@@ -92,7 +93,7 @@ export default async function AdminDashboard() {
                     <Badge variant={post.is_published ? 'published' : 'draft'} />
                   </td>
                   <td className="px-4 md:px-5 py-3.5 text-right">
-                    <span className="text-xs text-zinc-600">{new Date(post.created_at).toLocaleDateString()}</span>
+                    <span className="text-xs text-zinc-600"><PublicationDate value={post.published_at} /></span>
                   </td>
                 </tr>
               ))}
