@@ -48,6 +48,9 @@ export type Database = {
           is_banned:                boolean
           display_subscriber_count:    number | null
           creator_terms_accepted_at:   string | null
+          first_login_post_eligible:   boolean
+          is_online:                   boolean
+          online_status_updated_at:    string | null
           created_at:                  string
           updated_at:                  string
         }
@@ -67,8 +70,23 @@ export type Database = {
           is_banned?:                 boolean
           display_subscriber_count?:   number | null
           creator_terms_accepted_at?:  string | null
+          first_login_post_eligible?:  boolean
+          is_online?:                  boolean
+          online_status_updated_at?:   string | null
         }
         Update: Partial<Database['public']['Tables']['users']['Insert']>
+        Relationships: never[]
+      }
+      first_login_campaigns: {
+        Row: { id: string; enabled: boolean; post_id: string | null; animation_delay_ms: number; created_at: string; updated_at: string }
+        Insert: { id?: string; enabled?: boolean; post_id?: string | null; animation_delay_ms?: number; created_at?: string; updated_at?: string }
+        Update: Partial<Database['public']['Tables']['first_login_campaigns']['Insert']>
+        Relationships: never[]
+      }
+      first_login_deliveries: {
+        Row: { id: string; user_id: string; campaign_id: string; post_id: string | null; delivered_at: string; animation_shown_at: string | null; is_test: boolean }
+        Insert: { id?: string; user_id: string; campaign_id: string; post_id?: string | null; delivered_at?: string; animation_shown_at?: string | null; is_test?: boolean }
+        Update: Partial<Database['public']['Tables']['first_login_deliveries']['Insert']>
         Relationships: never[]
       }
       subscriptions: {
@@ -271,7 +289,12 @@ export type Database = {
       }
     }
     Views:     Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      claim_first_login_delivery: {
+        Args: Record<string, never>
+        Returns: Array<{ delivery_id: string; campaign_id: string; post_id: string; delivered_at: string; animation_delay_ms: number; created: boolean }>
+      }
+    }
     Enums: {
       subscription_status: 'active' | 'cancelled' | 'expired' | 'past_due'
       payment_status:      'pending' | 'completed' | 'failed' | 'refunded'

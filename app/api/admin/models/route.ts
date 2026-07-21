@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       username:     uname,
       display_name,
       email:        `model_${newId}@internal.funly`,
+      first_login_post_eligible: false,
     })
     .select('id, username, display_name')
     .single()

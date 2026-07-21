@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
 import Link from 'next/link'
-import { LayoutDashboard, FileText, Users, DollarSign, MessageSquare, UserCircle2, ChevronLeft, UserSquare2, Activity } from 'lucide-react'
+import { LayoutDashboard, FileText, Users, DollarSign, MessageSquare, UserCircle2, ChevronLeft, UserSquare2, Activity, Sparkles } from 'lucide-react'
 import LollipopIcon from '@/components/ui/LollipopIcon'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import ModelSwitcher from '@/components/admin/ModelSwitcher'
@@ -14,6 +14,7 @@ const navItems = [
   { href: '/admin/messages',    label: 'Messages',  icon: MessageSquare   },
   { href: '/admin/profile',     label: 'Profile',   icon: UserCircle2     },
   { href: '/admin/visitors',    label: 'Visitors',  icon: Activity        },
+  { href: '/admin/first-login', label: 'First Login Post', icon: Sparkles },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -42,7 +43,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Fetch all models owned by this user
   const { data: models } = await service
     .from('users')
-    .select('id, username, display_name, avatar_url')
+    .select('id, username, display_name, avatar_url, is_online')
     .eq('owner_id', user.id)
     .eq('is_creator', true)
     .order('created_at', { ascending: true })

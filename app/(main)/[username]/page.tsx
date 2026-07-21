@@ -30,7 +30,7 @@ export default async function CreatorPage({
   // Resolve the creator by username
   const { data: creator, error: creatorErr } = await service
     .from('users')
-    .select('id, username, display_name, bio, avatar_url, banner_url, is_verified, is_creator, is_banned')
+    .select('id, username, display_name, bio, avatar_url, banner_url, is_verified, is_creator, is_banned, is_online')
     .eq('username', params.username)
     .maybeSingle()
 
@@ -95,6 +95,7 @@ export default async function CreatorPage({
       likes: p.like_count,
       comments: p.comment_count,
       publishedAt: p.published_at,
+      isOnline: creator.is_online,
       commentsDisabled: (p as unknown as { comments_disabled: boolean }).comments_disabled ?? false,
       displayLikeCount: (p as unknown as { display_like_count: number | null }).display_like_count ?? null,
     }
@@ -114,6 +115,7 @@ export default async function CreatorPage({
         subscriberCount: subCount ?? 0,
         postCount: postCount ?? 0,
         displaySubscriberCount,
+        isOnline: creator.is_online,
       }}
       posts={posts}
       isSubscribed={isSubscribed}

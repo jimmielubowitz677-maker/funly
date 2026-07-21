@@ -7,6 +7,8 @@ import { CheckCircle, AlertCircle, X, Loader2, Crown, Star, Sparkles, Check, Mes
 import PostCard, { type Post } from '@/components/PostCard'
 import Button from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
+import OnlineStatus from '@/components/OnlineStatus'
+import { useOnlineStatuses } from '@/lib/use-online-statuses'
 
 interface CreatorInfo {
   id: string
@@ -20,6 +22,7 @@ interface CreatorInfo {
   subscriberCount: number
   postCount: number
   displaySubscriberCount: number | null
+  isOnline: boolean
 }
 
 interface CreatorProfileClientProps {
@@ -77,6 +80,9 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
 
   const subscribedCreatorIds = useMemo(() => new Set(isSubscribed ? [creator.id] : []), [isSubscribed, creator.id])
   const likedSet = useMemo(() => new Set(likedPostIds), [likedPostIds])
+  const onlineInitial = useMemo(() => ({ [creator.id]: creator.isOnline }), [creator.id, creator.isOnline])
+  const { statuses } = useOnlineStatuses(onlineInitial)
+  const creatorOnline = statuses[creator.id] ?? creator.isOnline
 
   // Handle payment=success redirect
   useEffect(() => {
@@ -240,6 +246,7 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
               </svg>
             )}
           </h1>
+          <OnlineStatus online={creatorOnline} showOffline />
           <p className="text-zinc-500 text-sm">@{creator.username}</p>
           {creator.bio && <p className="text-zinc-400 text-sm mt-2">{creator.bio}</p>}
           <div className="flex gap-4 mt-3">
@@ -327,7 +334,7 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
           {posts.map(post => (
             <PostCard
               key={post.id}
-              post={post}
+                post={{ ...post, isOnline: creatorOnline }}
               isSubscribed={subscribedCreatorIds.has(post.creatorId)}
               unlockedPosts={unlockedPosts}
               onUnlock={handleUnlock}

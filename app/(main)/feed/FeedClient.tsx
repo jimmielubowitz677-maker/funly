@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AlertCircle, X, Compass } from 'lucide-react'
 import PostCard, { type Post } from '@/components/PostCard'
+import { useOnlineStatuses } from '@/lib/use-online-statuses'
 
 interface FeedClientProps {
   posts: (Post & { _section: 'subscribed' | 'discover' })[]
@@ -13,6 +14,9 @@ interface FeedClientProps {
   userId?: string
   likedPostIds?: string[]
   hasSubscriptions?: boolean
+  initialPersonalPost?: (Post & { _section: 'personal' }) | null
+  initialPersonalAnimationShown?: boolean
+  initialPersonalDelayMs?: number
 }
 
 export default function FeedClient({
@@ -22,6 +26,9 @@ export default function FeedClient({
   userId,
   likedPostIds = [],
   hasSubscriptions = false,
+  initialPersonalPost = null,
+  initialPersonalAnimationShown = true,
+  initialPersonalDelayMs = 1000,
 }: FeedClientProps) {
   const likedSet      = useMemo(() => new Set(likedPostIds), [likedPostIds])
   const subscribedSet = useMemo(() => new Set(subscribedCreatorIds), [subscribedCreatorIds])
@@ -30,6 +37,37 @@ export default function FeedClient({
   const [unlockedPosts]    = useState<Set<string>>(new Set(unlockedPpvIds))
   const [unlockingPostId, setUnlockingPostId] = useState<string | null>(null)
   const [unlockError,     setUnlockError]     = useState<string | null>(null)
+  const [personalPost, setPersonalPost] = useState(initialPersonalPost)
+  const [personalVisible, setPersonalVisible] = useState(!!initialPersonalPost && initialPersonalAnimationShown)
+  const [personalEntering, setPersonalEntering] = useState(false)
+  const initialStatuses = useMemo(() => Object.fromEntries([...posts, ...(initialPersonalPost ? [initialPersonalPost] : [])].map(p => [p.creatorId, !!p.isOnline])), [posts, initialPersonalPost])
+  const { statuses } = useOnlineStatuses(initialStatuses)
+
+  useEffect(() => {
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    async function load() {
+      if (initialPersonalPost && initialPersonalAnimationShown) return
+      let post = initialPersonalPost
+      let delay = initialPersonalDelayMs
+      if (!post) {
+        const res = await fetch('/api/feed/first-login', { method: 'POST' })
+        const data = await res.json().catch(() => ({})) as { created?: boolean; post?: Post & { _section: 'personal' }; animationDelayMs?: number }
+        if (!data.created || !data.post || cancelled) return
+        post = { ...data.post, isPersonalDelivery: true }
+        delay = data.animationDelayMs ?? 1000
+        setPersonalPost(post)
+      }
+      timer = setTimeout(() => {
+        if (cancelled) return
+        setPersonalVisible(true); setPersonalEntering(true)
+        setTimeout(() => setPersonalEntering(false), 650)
+        setTimeout(() => { void fetch('/api/feed/first-login', { method: 'PATCH' }) }, 700)
+      }, delay)
+    }
+    void load()
+    return () => { cancelled = true; if (timer) clearTimeout(timer) }
+  }, [initialPersonalAnimationShown, initialPersonalDelayMs, initialPersonalPost])
 
   async function handleUnlock(id: string) {
     setUnlockingPostId(id)
@@ -59,7 +97,7 @@ export default function FeedClient({
     return (
       <PostCard
         key={post.id}
-        post={post}
+        post={{ ...post, isOnline: statuses[post.creatorId] ?? post.isOnline }}
         isSubscribed={subscribedSet.has(post.creatorId)}
         unlockedPosts={unlockedPosts}
         onUnlock={handleUnlock}
@@ -83,7 +121,8 @@ export default function FeedClient({
         </div>
       )}
 
-      {posts.length === 0 ? (
+      {personalPost && personalVisible && <div className={`mb-4 overflow-hidden first-login-post ${personalEntering ? 'first-login-post-enter' : ''}`}><PostCard post={{ ...personalPost, isOnline: statuses[personalPost.creatorId] ?? personalPost.isOnline }} isSubscribed={subscribedSet.has(personalPost.creatorId)} unlockedPosts={unlockedPosts} onUnlock={handleUnlock} onSubscribe={() => router.push(`/${personalPost.creator.username}`)} userId={userId} isLiked={likedSet.has(personalPost.id)} /></div>}
+      {posts.length === 0 && !personalPost ? (
         <div className="text-center py-16 space-y-4">
           <p className="text-zinc-600 text-sm">No posts yet.</p>
           <Link href="/subscriptions" className="inline-flex items-center gap-2 text-sm text-pink-400 hover:text-pink-300 font-medium transition-colors">

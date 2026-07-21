@@ -24,14 +24,14 @@ export default async function FeedPage() {
   // Fetch all active creators
   const { data: creators } = await service
     .from('users')
-    .select('id, username, display_name, is_verified, avatar_url')
+    .select('id, username, display_name, is_verified, avatar_url, is_online')
     .eq('is_creator', true)
     .eq('is_banned', false)
 
   const creatorIds = (creators ?? []).map((c: { id: string }) => c.id)
 
   const creatorMap = Object.fromEntries(
-    (creators ?? []).map((c: { id: string; username: string; display_name: string | null; is_verified: boolean; avatar_url: string | null }) => [c.id, c])
+    (creators ?? []).map(c => [c.id, c])
   )
 
   const [{ data: subscriptions }, { data: ppvPayments }, { data: likedRows }] = await Promise.all([
@@ -69,7 +69,7 @@ export default async function FeedPage() {
   type PostRow = { _section: 'subscribed' | 'discover'; id: string; creator_id: string; body: string | null; post_type: 'free' | 'premium' | 'ppv'; ppv_price_cents: number | null; like_count: number; comment_count: number; published_at: string | null; created_at: string; media: MediaRow[] }
 
   const posts: (Post & { _section: 'subscribed' | 'discover' })[] = ((rawPosts ?? []) as unknown as PostRow[]).map(p => {
-    const c = creatorMap[p.creator_id] as { id: string; username: string; display_name: string | null; is_verified: boolean; avatar_url: string | null } | undefined
+    const c = creatorMap[p.creator_id]
     const media = (p.media ?? []).sort((a: MediaRow, b: MediaRow) => a.sort_order - b.sort_order)
     const creatorName = c?.display_name ?? c?.username ?? 'Creator'
     const creatorUsername = c?.username ?? 'creator'
@@ -92,11 +92,31 @@ export default async function FeedPage() {
       likes: p.like_count,
       comments: p.comment_count,
       publishedAt: p.published_at,
+      isOnline: c?.is_online ?? false,
       commentsDisabled: (p as unknown as { comments_disabled: boolean }).comments_disabled ?? false,
       displayLikeCount: (p as unknown as { display_like_count: number | null }).display_like_count ?? null,
       _section: p._section,
     }
   })
+
+  const { data: delivery } = await service.from('first_login_deliveries').select('id,post_id,delivered_at,animation_shown_at,campaign_id').eq('user_id', user.id).maybeSingle()
+  let personalPost: (Post & { _section: 'personal' }) | null = null
+  let personalDelay = 1000
+  if (delivery?.post_id) {
+    const [{ data: deliveredPost }, { data: campaign }] = await Promise.all([
+      service.from('posts').select('*, media(id,url,media_type,sort_order)').eq('id', delivery.post_id).maybeSingle(),
+      service.from('first_login_campaigns').select('animation_delay_ms').eq('id', delivery.campaign_id).maybeSingle(),
+    ])
+    if (deliveredPost) {
+      const c = creatorMap[deliveredPost.creator_id]
+      if (c) {
+        const media = Array.from((deliveredPost.media ?? []) as unknown as MediaRow[]).sort((a, b) => a.sort_order - b.sort_order)
+        const name = c.display_name ?? c.username
+        personalPost = { id: deliveredPost.id, creatorId: deliveredPost.creator_id, creator: { name, username: c.username, initials: name.slice(0, 2).toUpperCase(), verified: c.is_verified, avatarUrl: c.avatar_url }, content: deliveredPost.body ?? '', hasMedia: media.length > 0, mediaItems: media.map(m => ({ url: m.url, type: m.media_type as 'image' | 'video' })), type: deliveredPost.post_type, ppvPrice: deliveredPost.ppv_price_cents ? deliveredPost.ppv_price_cents / 100 : undefined, likes: deliveredPost.like_count, comments: deliveredPost.comment_count, publishedAt: delivery.delivered_at, isOnline: c.is_online, isPersonalDelivery: true, commentsDisabled: deliveredPost.comments_disabled, displayLikeCount: deliveredPost.display_like_count, _section: 'personal' }
+        personalDelay = campaign?.animation_delay_ms ?? 1000
+      }
+    }
+  }
 
   return (
     <FeedClient
@@ -106,6 +126,9 @@ export default async function FeedPage() {
       userId={user.id}
       likedPostIds={Array.from(likedPostIds)}
       hasSubscriptions={subscribedIds.length > 0}
+      initialPersonalPost={personalPost}
+      initialPersonalAnimationShown={!!delivery?.animation_shown_at}
+      initialPersonalDelayMs={personalDelay}
     />
   )
 }

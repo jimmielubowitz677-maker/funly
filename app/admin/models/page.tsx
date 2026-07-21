@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import NewModelForm from './NewModelForm'
+import ModelsList from './ModelsList'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,7 @@ export default async function ModelsPage() {
   const service = getSupabaseServiceClient()
   const { data: models } = await service
     .from('users')
-    .select('id, username, display_name, avatar_url, created_at')
+    .select('id, username, display_name, avatar_url, is_online, created_at')
     .eq('owner_id', user.id)
     .eq('is_creator', true)
     .order('created_at', { ascending: true })
@@ -38,34 +39,7 @@ export default async function ModelsPage() {
       </div>
 
       {models?.length ? (
-        <div className="grid gap-3 mb-8">
-          {models.map(model => {
-            const initials = (model.display_name ?? model.username).slice(0, 2).toUpperCase()
-            return (
-              <div key={model.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4 hover:border-zinc-700 transition-colors">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-sm font-bold text-white shrink-0 overflow-hidden">
-                  {model.avatar_url
-                    ? <img src={model.avatar_url} alt="" className="w-full h-full object-cover" />
-                    : initials
-                  }
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-zinc-100 truncate">{model.display_name ?? model.username}</p>
-                  <p className="text-xs text-zinc-500">@{model.username}</p>
-                  <p className="text-[11px] text-zinc-600 mt-0.5">
-                    {subCounts[model.id] ?? 0} subscribers · {postCounts[model.id] ?? 0} posts
-                  </p>
-                </div>
-                <a
-                  href={`/api/admin/switch-model?id=${model.id}&redirect=/admin`}
-                  className="flex-shrink-0 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors"
-                >
-                  Manage →
-                </a>
-              </div>
-            )
-          })}
-        </div>
+        <ModelsList initialModels={models.map(model => ({ ...model, subscribers: subCounts[model.id] ?? 0, posts: postCounts[model.id] ?? 0 }))} />
       ) : (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl py-14 text-center mb-8">
           <p className="text-zinc-400 font-medium">No creator profiles yet</p>

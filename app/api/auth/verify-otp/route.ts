@@ -109,8 +109,9 @@ export async function POST(req: NextRequest) {
   const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase() || 'user'
   const username = `${emailPrefix}_${userId.slice(0, 6)}`
 
+  const { data: existingUser } = await supabase.from('users').select('id').eq('id', userId).maybeSingle()
   const { error: upsertError } = await supabase.from('users').upsert(
-    { id: userId, username, email },
+    { id: userId, username, email, ...(existingUser ? {} : { first_login_post_eligible: true }) },
     { onConflict: 'id', ignoreDuplicates: true }
   )
 

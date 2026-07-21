@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Heart, MessageSquare, Share2, Lock, Eye, Play, Send, ChevronDown, ChevronUp } from 'lucide-react'
 import Avatar from './ui/Avatar'
@@ -9,6 +9,7 @@ import Button from './ui/Button'
 import MediaLightbox, { type LightboxItem } from './ui/MediaLightbox'
 import { cn } from '@/lib/utils'
 import { formatPublicationDate } from '@/lib/publication-date'
+import OnlineStatus from '@/components/OnlineStatus'
 
 export type PostType = 'free' | 'premium' | 'ppv'
 
@@ -26,6 +27,8 @@ export interface Post {
   likes: number
   comments: number
   publishedAt: string | null
+  isOnline?: boolean
+  isPersonalDelivery?: boolean
   commentsDisabled?: boolean
   displayLikeCount?: number | null
 }
@@ -62,6 +65,20 @@ export default function PostCard({
   const [postingComment, setPostingComment] = useState(false)
   const [commentCount,  setCommentCount]  = useState(post.comments)
   const [shareToast,    setShareToast]    = useState(false)
+  const [clock, setClock] = useState(Date.now())
+
+  useEffect(() => {
+    if (!post.isPersonalDelivery) return
+    const timer = setInterval(() => setClock(Date.now()), 30_000)
+    return () => clearInterval(timer)
+  }, [post.isPersonalDelivery])
+
+  const personalTime = (() => {
+    if (!post.isPersonalDelivery || !post.publishedAt) return null
+    const minutes = Math.max(0, Math.floor((clock - new Date(post.publishedAt).getTime()) / 60_000))
+    if (minutes === 0) return 'Только что'
+    return `${minutes} ${minutes % 10 === 1 && minutes % 100 !== 11 ? 'минуту' : minutes % 10 >= 2 && minutes % 10 <= 4 && (minutes % 100 < 10 || minutes % 100 >= 20) ? 'минуты' : 'минут'} назад`
+  })()
 
   const isLocked =
     (post.type === 'premium' && !isSubscribed) ||
@@ -154,8 +171,9 @@ export default function PostCard({
                 <Badge variant={post.type} />
               </div>
               <span className="text-xs text-zinc-500">
-                @{post.creator.username} · {formatPublicationDate(post.publishedAt)}
+                @{post.creator.username} · {personalTime ?? formatPublicationDate(post.publishedAt)}
               </span>
+              <OnlineStatus online={post.isOnline ?? false} />
             </div>
           </Link>
         </div>
