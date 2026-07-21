@@ -11,22 +11,34 @@ function hashCode(code: string) {
   return createHash('sha256').update(code).digest('hex')
 }
 
+function maskEmail(email: string) {
+  const [local, domain] = email.split('@')
+  return `${local.slice(0, 2)}***@${domain}`
+}
+
+function senderDomain(from: string) {
+  return from.match(/@([^>\s]+)/)?.[1] ?? 'invalid'
+}
+
 export async function POST(req: NextRequest) {
-  const resend = new Resend(process.env.RESEND_API_KEY)
-  const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Funly <onboarding@resend.dev>'
+  const apiKey = process.env.RESEND_API_KEY
+  const from   = process.env.RESEND_FROM_EMAIL
+
+  if (!apiKey || !from) {
+    console.error('[send-otp] configuration error: Resend sender is not configured')
+    return NextResponse.json({ error: 'Email service is temporarily unavailable' }, { status: 500 })
+  }
+
+  const resend = new Resend(apiKey)
 
   const body  = await req.json().catch(() => null)
   const email = typeof body?.email === 'string' ? body.email.toLowerCase().trim() : null
 
-  console.log('[send-otp] route hit — raw body email:', body?.email, '→ parsed:', email)
-
   if (!email || !email.includes('@')) {
-    console.log('[send-otp] rejected: invalid email')
     return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
   }
 
   const code     = generateCode()
-  console.log(`[send-otp] code for ${email}: ${code}`)
   const supabase = getSupabaseServiceClient()
 
   // Invalidate any existing unused codes for this email before inserting a new one
@@ -43,8 +55,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create code' }, { status: 500 })
   }
 
-  const { error: emailError } = await resend.emails.send({
-    from:    FROM,
+  const { data: emailData, error: emailError } = await resend.emails.send({
+    from,
     to:      email,
     subject: `${code} — your Funly sign-in code`,
     html: `
@@ -75,9 +87,20 @@ export async function POST(req: NextRequest) {
   })
 
   if (emailError) {
-    console.error('[send-otp] Resend error:', emailError)
+    console.error('[send-otp] Resend error', {
+      category: emailError.name ?? 'resend_error',
+      message: emailError.message,
+      recipient: maskEmail(email),
+      senderDomain: senderDomain(from),
+    })
     return NextResponse.json({ error: 'Failed to send email' }, { status: 500 })
   }
+
+  console.log('[send-otp] email sent', {
+    emailId: emailData?.id ?? null,
+    recipient: maskEmail(email),
+    senderDomain: senderDomain(from),
+  })
 
   return NextResponse.json({ success: true })
 }
