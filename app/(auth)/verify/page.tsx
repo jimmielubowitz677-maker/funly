@@ -81,29 +81,50 @@ function VerifyContent() {
     if (code.length < 6 || loading) return
     setLoading(true); setError(null)
 
-    const res  = await fetch('/api/auth/verify-otp', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code }),
-    })
-    const data = await res.json()
-
-    if (!res.ok) {
-      setError(data.error ?? 'Invalid or expired code')
-      setOtp(Array(6).fill(''))
+    let res: Response
+    try {
+      res = await fetch('/api/auth/verify-otp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      })
+    } catch {
+      setError('Unable to complete sign in')
       setLoading(false)
-      setTimeout(() => inputRefs.current[0]?.focus(), 50)
+      return
+    }
+
+    const data = await res.json().catch(() => null)
+
+    if (!res.ok || !data?.success) {
+      const invalidCode = res.status === 400
+      setError(invalidCode ? 'Invalid or expired code' : (data?.error ?? 'Unable to complete sign in'))
+      if (invalidCode) {
+        setOtp(Array(6).fill(''))
+        setTimeout(() => inputRefs.current[0]?.focus(), 50)
+      }
+      setLoading(false)
+      return
+    }
+
+    if (typeof data.access_token !== 'string' || typeof data.refresh_token !== 'string') {
+      setError('Server configuration error')
+      setLoading(false)
       return
     }
 
     // Use setSession instead of verifyOtp — the server already exchanged the
     // magic-link token for a real session, so we just store the tokens here.
     // This avoids PKCE flow issues that cause verifyOtp to fail silently.
-    const { error: sessionError } = await supabase.auth.setSession({
+    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
       access_token:  data.access_token,
       refresh_token: data.refresh_token,
     })
 
-    if (sessionError) { setError(sessionError.message); setLoading(false); return }
+    if (sessionError || !sessionData.session) {
+      setError('Unable to complete sign in')
+      setLoading(false)
+      return
+    }
 
     // Registration flow → show optional Set Password step
     // Login flow → go straight to feed
