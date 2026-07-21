@@ -8,6 +8,8 @@ import Avatar from '@/components/ui/Avatar'
 import Button from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
+import OnlineStatus from '@/components/OnlineStatus'
+import { useOnlineStatuses } from '@/lib/use-online-statuses'
 
 interface ConversationPreview {
   creator: {
@@ -16,6 +18,7 @@ interface ConversationPreview {
     displayName: string
     avatarUrl: string | null
     isVerified: boolean
+    isOnline: boolean | null
   }
   lastMessageBody: string | null
   lastMessageAt: string | null
@@ -28,6 +31,7 @@ interface ActiveCreator {
   displayName: string
   avatarUrl: string | null
   isVerified: boolean
+  isOnline: boolean | null
   canMessage: boolean
 }
 
@@ -66,6 +70,9 @@ export default function MessagesClient({
   const [mobileView, setMobileView] = useState<'list' | 'thread'>(activeCreatorId ? 'thread' : 'list')
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = getSupabaseBrowserClient()
+  const statusInitial: Record<string, boolean> = Object.fromEntries(conversations.map(conv => [conv.creator.id, conv.creator.isOnline === true]))
+  if (activeCreator) statusInitial[activeCreator.id] = activeCreator.isOnline === true
+  const { statuses } = useOnlineStatuses(statusInitial)
 
   useEffect(() => {
     setMessages(initialMessages)
@@ -177,6 +184,7 @@ export default function MessagesClient({
                     <p className="text-xs text-zinc-500 truncate">
                       {conv.lastMessageBody ?? 'Start the conversation'}
                     </p>
+                    <OnlineStatus online={statuses[conv.creator.id] ?? conv.creator.isOnline} className="md:inline-flex" />
                   </div>
                 </button>
               )
@@ -224,6 +232,7 @@ export default function MessagesClient({
                   <span className="text-xs bg-pink-500/15 text-pink-400 border border-pink-500/20 px-2 py-0.5 rounded-md font-semibold">Creator</span>
                 </div>
                 <p className="text-xs text-zinc-500">@{activeCreator.username}</p>
+                <OnlineStatus online={statuses[activeCreator.id] ?? activeCreator.isOnline} />
               </div>
             </div>
 

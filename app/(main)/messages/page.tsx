@@ -34,9 +34,9 @@ export default async function MessagesPage({
   ).filter(id => id !== user.id)
 
   // Fetch creator info for all conversation partners
-  type CreatorRow = { id: string; username: string; display_name: string | null; avatar_url: string | null; is_verified: boolean; is_creator: boolean }
+  type CreatorRow = { id: string; username: string; display_name: string | null; avatar_url: string | null; is_verified: boolean; is_creator: boolean; is_online: boolean | null }
   const { data: partners } = partnerIds.length
-    ? await service.from('users').select('id, username, display_name, avatar_url, is_verified, is_creator').in('id', partnerIds)
+    ? await service.from('users').select('id, username, display_name, avatar_url, is_verified, is_creator, is_online').in('id', partnerIds)
     : { data: [] as CreatorRow[] }
 
   // Resolve which creator to open from ?with=username
@@ -54,7 +54,7 @@ export default async function MessagesPage({
   if (activeCreatorId && !partnerIds.includes(activeCreatorId)) {
     const { data: extra } = await service
       .from('users')
-      .select('id, username, display_name, avatar_url, is_verified, is_creator')
+      .select('id, username, display_name, avatar_url, is_verified, is_creator, is_online')
       .eq('id', activeCreatorId)
       .maybeSingle()
     if (extra) (partners as CreatorRow[]).push(extra as CreatorRow)
@@ -109,6 +109,7 @@ export default async function MessagesPage({
           displayName: c.creator.display_name ?? c.creator.username,
           avatarUrl: c.creator.avatar_url ?? null,
           isVerified: c.creator.is_verified,
+          isOnline: c.creator.is_online,
         },
         lastMessageBody: c.lastMsg?.body ?? null,
         lastMessageAt:   c.lastMsg?.created_at ?? null,
@@ -121,6 +122,7 @@ export default async function MessagesPage({
         displayName: activeConversation.creator.display_name ?? activeConversation.creator.username,
         avatarUrl:   activeConversation.creator.avatar_url ?? null,
         isVerified:  activeConversation.creator.is_verified,
+        isOnline: activeConversation.creator.is_online,
         canMessage:  activeConversation.canMessage,
       } : null}
       initialMessages={initialMessages}
