@@ -2,12 +2,15 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown } from 'lucide-react'
+import OnlineStatus from '@/components/OnlineStatus'
+import { useOnlineStatuses } from '@/lib/use-online-statuses'
 
 interface Model {
   id: string
   username: string
   display_name: string | null
   avatar_url: string | null
+  is_online: boolean
 }
 
 interface ModelSwitcherProps {
@@ -18,6 +21,8 @@ interface ModelSwitcherProps {
 export default function ModelSwitcher({ models, selectedModelId }: ModelSwitcherProps) {
   const selected = models.find(m => m.id === selectedModelId) ?? null
   const [open, setOpen] = useState(false)
+  const initialStatuses = Object.fromEntries(models.map(model => [model.id, model.is_online]))
+  const { statuses } = useOnlineStatuses(initialStatuses)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -49,6 +54,7 @@ export default function ModelSwitcher({ models, selectedModelId }: ModelSwitcher
             {selected ? (selected.display_name ?? selected.username) : 'Select model'}
           </p>
           {selected && <p className="text-[10px] text-zinc-500 leading-tight">@{selected.username}</p>}
+          {selected && <OnlineStatus online={statuses[selected.id] ?? selected.is_online} />}
         </div>
         <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -71,6 +77,7 @@ export default function ModelSwitcher({ models, selectedModelId }: ModelSwitcher
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-zinc-200 truncate">{m.display_name ?? m.username}</p>
                 <p className="text-[10px] text-zinc-500">@{m.username}</p>
+                <OnlineStatus online={statuses[m.id] ?? m.is_online} />
               </div>
               {m.id === selectedModelId && (
                 <div className="w-1.5 h-1.5 rounded-full bg-pink-400 shrink-0" />
