@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { createInvoice } from '@/lib/nowpayments'
@@ -33,7 +34,8 @@ async function ensureProfile(
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
-  const postId = (body as { postId?: string } | null)?.postId
+  const postId = (body as { postId?: string; promoCode?: string } | null)?.postId
+  const promoCode = (body as { promoCode?: string } | null)?.promoCode?.trim() || null
 
   if (!postId) {
     return NextResponse.json({ error: 'postId is required' }, { status: 400 })
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Please sign in to unlock this post.' }, { status: 401 })
   }
 
-  const service = getSupabaseServiceClient()
+  const service = getSupabaseServiceClient() as any
 
   // Fetch the post — must be PPV and published
   const { data: post } = await service
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
   const proto = host.startsWith('localhost') ? 'http' : 'https'
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? `${proto}://${host}`
 
-  const { error: insertErr } = await service.from('payments').insert({
+  const { data: paymentRow, error: insertErr } = await service.from('payments').insert({
     payer_id:            subscriberId,
     payee_id:            creatorId,
     post_id:             postId,
@@ -103,17 +105,29 @@ export async function POST(request: NextRequest) {
     status:              'pending',
     provider:            'crypto',
     provider_payment_id: orderId,
-  })
+  }).select('id').single()
 
   if (insertErr) {
     console.error('[unlock-post] DB insert failed:', insertErr)
     return NextResponse.json({ error: 'Failed to record payment. Try again.' }, { status: 500 })
   }
 
+  let finalAmountCents = post.ppv_price_cents
+  if (promoCode) {
+    const { data: promo, error: promoError } = await service.rpc('reserve_promo_code_for_payment', { p_code: promoCode, p_user_id: user.id, p_payment_id: paymentRow.id, p_original_amount_cents: post.ppv_price_cents, p_currency: 'USD', p_purchase_type: 'ppv', p_target_id: postId })
+    if (promoError || !promo?.[0]) {
+      await service.from('payments').delete().eq('id', paymentRow.id)
+      const message = promoError?.message?.includes('promo_code_inactive') ? 'Promo code is inactive' : promoError?.message?.includes('promo_code_expired') ? 'Promo code has expired' : promoError?.message?.includes('usage_limit') ? 'Promo code usage limit reached' : promoError?.message?.includes('minimum_purchase') ? 'Minimum purchase amount not reached' : 'Invalid promo code'
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
+    finalAmountCents = promo[0].final_amount_cents
+    await service.from('payments').update({ original_amount_cents: post.ppv_price_cents, amount_cents: finalAmountCents, discount_amount_cents: promo[0].discount_amount_cents, promo_code_id: promo[0].promo_code_id, promo_code_snapshot: promo[0].promo_code_snapshot, discount_percent: promo[0].discount_percent }).eq('id', paymentRow.id)
+  }
+
   let invoice
   try {
     invoice = await createInvoice({
-      price_amount:      post.ppv_price_cents / 100,
+      price_amount:      finalAmountCents / 100,
       price_currency:    'usd',
       order_id:          orderId,
       order_description: `PPV Unlock — ${post.title ?? 'Exclusive Post'}`,
@@ -123,9 +137,11 @@ export async function POST(request: NextRequest) {
     })
   } catch (err) {
     console.error('[unlock-post] NOWPayments error:', err)
+    if (promoCode) await service.rpc('release_promo_redemption', { p_payment_id: paymentRow.id, p_status: 'failed' })
     await service.from('payments').delete().eq('provider_payment_id', orderId)
     return NextResponse.json({ error: 'Could not create crypto invoice. Try again.' }, { status: 502 })
   }
 
   return NextResponse.json({ invoice_url: invoice.invoice_url })
 }
+/* eslint-disable @typescript-eslint/no-explicit-any */

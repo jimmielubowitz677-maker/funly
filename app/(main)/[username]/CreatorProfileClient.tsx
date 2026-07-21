@@ -77,6 +77,10 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [paymentProcessing, setPaymentProcessing] = useState(false)
   const [pollTimedOut, setPollTimedOut] = useState(false)
+  const [promoCode, setPromoCode] = useState('')
+  const [promoApplied, setPromoApplied] = useState<{ code: string; discountPercent: number; originalAmountCents: number; discountAmountCents: number; finalAmountCents: number } | null>(null)
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [promoError, setPromoError] = useState<string | null>(null)
 
   const subscribedCreatorIds = useMemo(() => new Set(isSubscribed ? [creator.id] : []), [isSubscribed, creator.id])
   const likedSet = useMemo(() => new Set(likedPostIds), [likedPostIds])
@@ -127,7 +131,7 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
       const res = await fetch('/api/payments/create-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId, creatorId: creator.id }),
+        body: JSON.stringify({ planId, creatorId: creator.id, promoCode: promoApplied?.code }),
       })
       const data = await res.json() as { invoice_url?: string; error?: string }
       if (!res.ok || !data.invoice_url) {
@@ -149,7 +153,7 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
       const res = await fetch('/api/payments/unlock-post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId: id }),
+        body: JSON.stringify({ postId: id, promoCode: promoApplied?.code }),
       })
       const data = await res.json() as { invoice_url?: string; error?: string }
       if (!res.ok || !data.invoice_url) {
@@ -259,6 +263,15 @@ export default function CreatorProfileClient({ creator, posts, isSubscribed, unl
       {/* Subscription plans — shown only to non-subscribers who aren't the creator */}
       {!isSubscribed && !isOwnProfile && (
         <div className="mb-6">
+          <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+            <label className="text-xs font-medium text-zinc-300" htmlFor="promo-code">Promo code</label>
+            <div className="mt-2 flex gap-2">
+              <input id="promo-code" value={promoCode} onChange={e => { setPromoCode(e.target.value); setPromoApplied(null); setPromoError(null) }} placeholder="WELCOME10" className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white uppercase" />
+              {promoApplied ? <Button variant="outline" size="sm" onClick={() => { setPromoApplied(null); setPromoCode('') }}>Remove</Button> : <Button variant="outline" size="sm" disabled={promoLoading || !promoCode.trim()} onClick={async () => { setPromoLoading(true); setPromoError(null); try { const res = await fetch('/api/payments/promo-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: promoCode, planId: 'fan' }) }); const data = await res.json(); if (!res.ok) setPromoError(data.error ?? 'Unable to apply promo code'); else setPromoApplied(data) } catch { setPromoError('Unable to apply promo code') } finally { setPromoLoading(false) } }}>{promoLoading ? 'Checking…' : 'Apply'}</Button>}
+            </div>
+            {promoError && <p className="mt-2 text-xs text-red-400">{promoError}</p>}
+            {promoApplied && <p className="mt-2 text-xs text-emerald-400">{promoApplied.code}: {promoApplied.discountPercent}% off. Discount updates at checkout for the selected plan.</p>}
+          </div>
           {planError && (
             <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-500/30 bg-zinc-900 px-4 py-3">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />

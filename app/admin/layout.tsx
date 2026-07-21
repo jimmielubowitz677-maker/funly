@@ -15,6 +15,7 @@ const navItems = [
   { href: '/admin/profile',     label: 'Profile',   icon: UserCircle2     },
   { href: '/admin/visitors',    label: 'Visitors',  icon: Activity        },
   { href: '/admin/first-login', label: 'First Login Post', icon: Sparkles },
+  { href: '/admin/promo-codes', label: 'Promo Codes', icon: DollarSign },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

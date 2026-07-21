@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { verifyWebhookSignature } from '@/lib/nowpayments'
@@ -36,13 +37,13 @@ export async function POST(request: NextRequest) {
   const event = JSON.parse(rawBody) as NowPaymentsEvent
   const { payment_id, payment_status, order_id, price_amount } = event
 
-  const service = getSupabaseServiceClient()
+  const service = getSupabaseServiceClient() as any
 
   // Locate the pending payment created during invoice creation
   const { data: payment } = await service
     .from('payments')
     .select('*')
-    .eq('provider_payment_id', order_id)
+    .or(`provider_payment_id.eq.${order_id},provider_payment_id.eq.${String(payment_id)}`)
     .maybeSingle()
 
   if (!payment) {
@@ -50,11 +51,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true })
   }
 
+  if (payment.status === 'completed' && (payment_status === 'finished' || payment_status === 'confirmed')) {
+    return NextResponse.json({ received: true })
+  }
+
   if (payment_status === 'finished' || payment_status === 'confirmed') {
     const platformFeeCents = Math.round(payment.amount_cents * 0.15)
 
     // Replace the temporary order UUID with the real NOWPayments payment ID
-    await service
+    const { data: completedPayment } = await service
       .from('payments')
       .update({
         status:              'completed',
@@ -62,6 +67,11 @@ export async function POST(request: NextRequest) {
         platform_fee_cents:  platformFeeCents,
       })
       .eq('id', payment.id)
+      .eq('status', 'pending')
+
+    if (!completedPayment?.length) return NextResponse.json({ received: true })
+
+    if (payment.promo_code_id) await service.rpc('confirm_promo_redemption', { p_payment_id: payment.id })
 
     // PPV post unlock — payment is complete, no subscription to create
     if (payment.post_id) {
@@ -69,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     const amountCents = Math.round(price_amount * 100)
-    const planId = CENTS_TO_PLAN[amountCents] ?? 'fan'
+    const planId = payment.purchase_plan_id ?? CENTS_TO_PLAN[amountCents] ?? 'fan'
     const now = new Date()
     const periodEnd = new Date(now)
     periodEnd.setDate(periodEnd.getDate() + SUBSCRIPTION_DAYS)
@@ -135,6 +145,7 @@ export async function POST(request: NextRequest) {
       .from('payments')
       .update({ status: 'failed', provider_payment_id: String(payment_id || order_id) })
       .eq('id', payment.id)
+    if (payment.promo_code_id) await service.rpc('release_promo_redemption', { p_payment_id: payment.id, p_status: payment_status })
   } else if (payment_status === 'refunded') {
     await service
       .from('payments')
@@ -148,3 +159,4 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ received: true })
 }
+/* eslint-disable @typescript-eslint/no-explicit-any */

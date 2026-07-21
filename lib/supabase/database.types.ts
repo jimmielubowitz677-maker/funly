@@ -264,6 +264,12 @@ export type Database = {
           provider_fee_cents:  number | null
           refunded_at:         string | null
           refund_reason:       string | null
+          original_amount_cents: number | null
+          discount_amount_cents: number
+          promo_code_id: string | null
+          promo_code_snapshot: string | null
+          discount_percent: number | null
+          purchase_plan_id: string | null
           created_at:          string
           updated_at:          string
         }
@@ -283,6 +289,12 @@ export type Database = {
           provider_fee_cents?:  number | null
           refunded_at?:         string | null
           refund_reason?:       string | null
+          original_amount_cents?: number | null
+          discount_amount_cents?: number
+          promo_code_id?: string | null
+          promo_code_snapshot?: string | null
+          discount_percent?: number | null
+          purchase_plan_id?: string | null
         }
         Update: Partial<Database['public']['Tables']['payments']['Insert']>
         Relationships: never[]
