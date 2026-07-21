@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AlertCircle, X, Compass } from 'lucide-react'
@@ -17,6 +17,8 @@ interface FeedClientProps {
   initialPersonalPost?: (Post & { _section: 'personal' }) | null
   initialPersonalAnimationShown?: boolean
   initialPersonalDelayMs?: number
+  initialHasMore?: boolean
+  initialCursor?: { publishedAt: string | null; id: string } | null
 }
 
 export default function FeedClient({
@@ -29,7 +31,15 @@ export default function FeedClient({
   initialPersonalPost = null,
   initialPersonalAnimationShown = true,
   initialPersonalDelayMs = 1000,
+  initialHasMore = false,
+  initialCursor = null,
 }: FeedClientProps) {
+  const [feedPosts, setFeedPosts] = useState(posts)
+  const [cursor, setCursor] = useState(initialCursor)
+  const [hasMore, setHasMore] = useState(initialHasMore)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
   const likedSet      = useMemo(() => new Set(likedPostIds), [likedPostIds])
   const subscribedSet = useMemo(() => new Set(subscribedCreatorIds), [subscribedCreatorIds])
   const router        = useRouter()
@@ -40,8 +50,30 @@ export default function FeedClient({
   const [personalPost, setPersonalPost] = useState(initialPersonalPost)
   const [personalVisible, setPersonalVisible] = useState(!!initialPersonalPost && initialPersonalAnimationShown)
   const [personalEntering, setPersonalEntering] = useState(false)
-  const initialStatuses = useMemo(() => Object.fromEntries([...posts, ...(initialPersonalPost ? [initialPersonalPost] : [])].map(p => [p.creatorId, !!p.isOnline])), [posts, initialPersonalPost])
+  const initialStatuses = useMemo(() => Object.fromEntries([...feedPosts, ...(initialPersonalPost ? [initialPersonalPost] : [])].map(p => [p.creatorId, !!p.isOnline])), [feedPosts, initialPersonalPost])
   const { statuses } = useOnlineStatuses(initialStatuses)
+
+  async function loadMore() {
+    if (!hasMore || isLoadingMore || !cursor) return
+    setIsLoadingMore(true); setLoadError(null)
+    try {
+      const params = new URLSearchParams({ published_at: cursor.publishedAt ?? '', id: cursor.id })
+      const res = await fetch(`/api/feed/posts?${params}`)
+      const data = await res.json().catch(() => null) as { posts?: (Post & { _section: 'subscribed' | 'discover' })[]; hasMore?: boolean; nextCursor?: { publishedAt: string | null; id: string } | null; error?: string } | null
+      if (!res.ok || !data?.posts) throw new Error(data?.error ?? 'Could not load more posts')
+      setFeedPosts(current => { const known = new Set(current.map(post => post.id)); return [...current, ...data.posts!.filter(post => !known.has(post.id))] })
+      setCursor(data.nextCursor ?? null); setHasMore(data.hasMore === true && !!data.nextCursor)
+    } catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not load more posts') }
+    finally { setIsLoadingMore(false) }
+  }
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) void loadMore() }, { rootMargin: '600px 0px' })
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, isLoadingMore, cursor])
 
   useEffect(() => {
     let cancelled = false
@@ -90,9 +122,6 @@ export default function FeedClient({
     }
   }
 
-  const subscribedPosts = posts.filter(p => p._section === 'subscribed')
-  const discoveryPosts  = posts.filter(p => p._section === 'discover')
-
   function renderPost(post: Post & { _section: 'subscribed' | 'discover' }) {
     return (
       <PostCard
@@ -121,8 +150,8 @@ export default function FeedClient({
         </div>
       )}
 
-      {personalPost && personalVisible && <div className={`mb-4 overflow-hidden first-login-post ${personalEntering ? 'first-login-post-enter' : ''}`}><PostCard post={{ ...personalPost, isOnline: statuses[personalPost.creatorId] ?? personalPost.isOnline }} isSubscribed={subscribedSet.has(personalPost.creatorId)} unlockedPosts={unlockedPosts} onUnlock={handleUnlock} onSubscribe={() => router.push(`/${personalPost.creator.username}`)} userId={userId} isLiked={likedSet.has(personalPost.id)} /></div>}
-      {posts.length === 0 && !personalPost ? (
+      {personalPost && personalVisible && !feedPosts.some(post => post.id === personalPost.id) && <div className={`mb-4 overflow-hidden first-login-post ${personalEntering ? 'first-login-post-enter' : ''}`}><PostCard post={{ ...personalPost, isOnline: statuses[personalPost.creatorId] ?? personalPost.isOnline }} isSubscribed={subscribedSet.has(personalPost.creatorId)} unlockedPosts={unlockedPosts} onUnlock={handleUnlock} onSubscribe={() => router.push(`/${personalPost.creator.username}`)} userId={userId} isLiked={likedSet.has(personalPost.id)} /></div>}
+      {feedPosts.length === 0 && !personalPost ? (
         <div className="text-center py-16 space-y-4">
           <p className="text-zinc-600 text-sm">No posts yet.</p>
           <Link href="/subscriptions" className="inline-flex items-center gap-2 text-sm text-pink-400 hover:text-pink-300 font-medium transition-colors">
@@ -131,33 +160,18 @@ export default function FeedClient({
           </Link>
         </div>
       ) : (
-        <>
-          {/* ── Subscribed section ── */}
-          {subscribedPosts.length > 0 && (
-            <div className="mb-8">
-              <h1 className="text-xl font-bold mb-4">Following</h1>
-              <div className="flex flex-col gap-4">
-                {subscribedPosts.map(renderPost)}
-              </div>
-            </div>
-          )}
-
-          {/* ── Discovery section ── */}
-          {discoveryPosts.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Compass className="w-4 h-4 text-zinc-500" />
-                <h2 className={`font-bold ${hasSubscriptions ? 'text-base text-zinc-400' : 'text-xl text-white'}`}>
-                  {hasSubscriptions ? 'Discover More' : 'Latest Posts'}
-                </h2>
-              </div>
-              <div className="flex flex-col gap-4">
-                {discoveryPosts.map(renderPost)}
-              </div>
-            </div>
-          )}
-        </>
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Compass className="w-4 h-4 text-zinc-500" />
+            <h1 className="text-xl font-bold">{hasSubscriptions ? 'Your Feed' : 'Latest Posts'}</h1>
+          </div>
+          <div className="flex flex-col gap-4">{feedPosts.map(renderPost)}</div>
+        </div>
       )}
+      <div ref={sentinelRef} aria-hidden="true" className="h-1" />
+      {isLoadingMore && <p className="py-5 text-center text-xs text-zinc-500">Loading more posts…</p>}
+      {loadError && <div className="flex items-center justify-center gap-3 py-5"><p className="text-xs text-red-400">{loadError}</p><button onClick={() => void loadMore()} className="text-xs text-pink-400 hover:text-pink-300">Retry</button></div>}
+      {!hasMore && feedPosts.length > 0 && <p className="py-5 text-center text-xs text-zinc-600">You&apos;re all caught up</p>}
     </div>
   )
 }

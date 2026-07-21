@@ -4,6 +4,7 @@ import FeedClient from './FeedClient'
 import type { Post } from '@/components/PostCard'
 
 export const dynamic = 'force-dynamic'
+const FEED_PAGE_SIZE = 20
 
 const GRADIENTS = [
   'from-orange-400/30 to-rose-500/30',
@@ -44,25 +45,19 @@ export default async function FeedPage() {
   const unlockedPpvIds = (ppvPayments ?? []).map(p => (p as unknown as { post_id: string }).post_id).filter(Boolean)
   const likedPostIds = new Set((likedRows ?? []).map((r: { post_id: string }) => r.post_id))
 
-  // Personalized fetch: subscribed creators first (up to 20), then discovery (up to 15)
+  // Load one deterministic page. Subscription state is a presentation flag;
+  // posts remain globally ordered by published_at/id for cursor pagination.
   const subscribedSet  = new Set(subscribedCreatorIds)
   const subscribedIds  = creatorIds.filter(id => subscribedSet.has(id))
-  const discoveryIds   = creatorIds.filter(id => !subscribedSet.has(id))
 
-  const [{ data: subscribedPosts }, { data: discoveryPosts }] = await Promise.all([
-    subscribedIds.length
-      ? service.from('posts').select('*, media(id, url, media_type, sort_order)').in('creator_id', subscribedIds).eq('is_published', true).order('published_at', { ascending: false }).limit(20)
-      : Promise.resolve({ data: [] }),
-    discoveryIds.length
-      ? service.from('posts').select('*, media(id, url, media_type, sort_order)').in('creator_id', discoveryIds).eq('is_published', true).order('published_at', { ascending: false }).limit(15)
-      : Promise.resolve({ data: [] }),
-  ])
+  const { data: pagePosts } = creatorIds.length
+    ? await service.from('posts').select('*, media(id, url, media_type, sort_order)').in('creator_id', creatorIds).eq('is_published', true).not('published_at', 'is', null).order('published_at', { ascending: false }).order('id', { ascending: false }).limit(FEED_PAGE_SIZE + 1)
+    : { data: [] }
+  const pageHasMore = (pagePosts ?? []).length > FEED_PAGE_SIZE
+  const visiblePagePosts = (pagePosts ?? []).slice(0, FEED_PAGE_SIZE)
 
   // Tag each post so the client can render section headers
-  const rawPosts = [
-    ...(subscribedPosts ?? []).map((p: unknown) => ({ ...(p as object), _section: 'subscribed' as const })),
-    ...(discoveryPosts  ?? []).map((p: unknown) => ({ ...(p as object), _section: 'discover'   as const })),
-  ]
+  const rawPosts = visiblePagePosts.map((p: unknown) => ({ ...(p as object), _section: subscribedSet.has((p as { creator_id: string }).creator_id) ? 'subscribed' as const : 'discover' as const }))
 
   // Build posts array
   type MediaRow = { id: string; url: string; media_type: string; sort_order: number }
@@ -129,6 +124,8 @@ export default async function FeedPage() {
       initialPersonalPost={personalPost}
       initialPersonalAnimationShown={!!delivery?.animation_shown_at}
       initialPersonalDelayMs={personalDelay}
+      initialHasMore={pageHasMore}
+      initialCursor={posts.length ? { publishedAt: posts[posts.length - 1].publishedAt, id: posts[posts.length - 1].id } : null}
     />
   )
 }
